@@ -67,6 +67,10 @@
 //  2 = chime sintetizado (sino suave) via modulo I2S MAX98357A + alto-falante
 //      MAX98357A:  BCLK -> I2S_BCLK   LRC -> I2S_LRC   DIN -> I2S_DIN
 //                  VIN -> 5V (VBUS) ou 3V3   GND -> GND   SD/GAIN: deixe soltos
+//  3 = chime para TESTE SEM AMPLIFICADOR: o audio sai so no pino I2S_DIN (GPIO6)
+//      GPIO6 -> resistor 1k -> buzzer PASSIVO (ou piezo) -> GND
+//      Fone: GPIO6 -> 1k -> capacitor 100nF -> ponta do P2; GND -> corpo do P2
+//      (volume baixo; nunca ligue alto-falante direto no pino)
 // -----------------------------------------------------------------------------
 #define SOM_MODO 2
 

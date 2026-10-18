@@ -65,6 +65,19 @@ O alto-falante vai nos bornes + e − do módulo. O volume se ajusta em `SOM_VOL
 (0 a 100). Se o som sair alto demais, ligue o pino GAIN do módulo ao VIN, o que
 reduz o ganho para 6 dB.
 
+### Testando o som sem o amplificador (`SOM_MODO 3`)
+
+Nesse modo o ESP32-S3 gera o áudio em PDM (modulação de 1 bit) num único pino, o
+GPIO6. Ele toca os mesmos chimes, com volume baixo:
+
+- **Buzzer passivo ou disco piezo:** GPIO6 → resistor de 1 kΩ → buzzer → GND.
+  Precisa ser buzzer *passivo* (o ativo só faz "biiip").
+- **Fone de ouvido:** GPIO6 → resistor de 1 kΩ → capacitor de 100 nF → ponta do
+  plugue P2; GND → corpo do plugue. Comece com o fone longe do ouvido.
+
+Nunca ligue um alto-falante direto no pino: ele pede corrente demais e pode queimar o
+GPIO. Depois do teste, volte para `SOM_MODO 2` e use o MAX98357A.
+
 ## Preparando a Arduino IDE
 
 1. **Arquivo → Preferências → URLs adicionais**:

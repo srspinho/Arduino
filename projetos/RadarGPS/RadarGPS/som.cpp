@@ -1,9 +1,12 @@
 #include "som.h"
 #include "config.h"
 
-#if SOM_MODO == 2
+#if SOM_MODO == 2 || SOM_MODO == 3
 // -----------------------------------------------------------------------------
-//  Chime sintetizado, enviado por I2S para um amplificador MAX98357A.
+//  Chime sintetizado, enviado por I2S:
+//   SOM_MODO 2: formato padrao I2S para um amplificador MAX98357A
+//   SOM_MODO 3: modulacao PDM (1 bit) num unico pino (I2S_DIN), para testar com
+//               buzzer passivo ou fone de ouvido, sem amplificador
 //  Uma tarefa no nucleo 0 gera o audio continuamente (silencio quando nao ha
 //  som), assim o loop principal, a tela e o GPS nunca ficam esperando.
 // -----------------------------------------------------------------------------
@@ -29,8 +32,14 @@ static void tarefaAudio(void *) {
 }
 
 void somIniciar() {
+#if SOM_MODO == 2
   i2s.setPins(I2S_BCLK, I2S_LRC, I2S_DIN);
-  if (!i2s.begin(I2S_MODE_STD, SINT_TAXA_AMOSTRAGEM, I2S_DATA_BIT_WIDTH_16BIT, I2S_SLOT_MODE_STEREO)) {
+  bool ok = i2s.begin(I2S_MODE_STD, SINT_TAXA_AMOSTRAGEM, I2S_DATA_BIT_WIDTH_16BIT, I2S_SLOT_MODE_STEREO);
+#else
+  i2s.setPinsPdmTx(I2S_BCLK, I2S_DIN);  // o pino de clock nao precisa ser ligado
+  bool ok = i2s.begin(I2S_MODE_PDM_TX, SINT_TAXA_AMOSTRAGEM, I2S_DATA_BIT_WIDTH_16BIT, I2S_SLOT_MODE_STEREO);
+#endif
+  if (!ok) {
     Serial.println("ERRO: falha ao iniciar o I2S (som)");
     return;
   }
