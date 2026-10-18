@@ -62,9 +62,14 @@
 //  GPS Beitian BN-180
 //  Ligacao:  BN-180 TX -> GPS_RX_PIN     BN-180 RX -> GPS_TX_PIN
 //            BN-180 VCC -> 3V3 (ou 5V)   BN-180 GND -> GND
+//
+//  Qualquer GPIO livre do conector serve (o ESP32-S3 roteia a UART para
+//  qualquer pino). O padrao usa os pinos marcados TXD/RXD (GPIO43/44); para
+//  isso, deixe "USB CDC On Boot: Enabled", assim o Serial do PC vai pela USB.
+//  So o fio TX do GPS e obrigatorio: sem o RX, use GPS_TX_PIN -1.
 // -----------------------------------------------------------------------------
-#define GPS_RX_PIN 17
-#define GPS_TX_PIN 18
+#define GPS_RX_PIN 44   // RXD no conector
+#define GPS_TX_PIN 43   // TXD no conector
 #define GPS_BAUD   9600   // padrao de fabrica do BN-180
 
 // Fuso horario para o relogio da barra de status (Brasilia = -3)

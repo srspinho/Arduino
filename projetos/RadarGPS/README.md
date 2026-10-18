@@ -34,11 +34,14 @@ projetos/RadarGPS/
 |--------|----------|
 | VCC (vermelho) | 3V3 (ou 5V) |
 | GND (preto) | GND |
-| **TX** | **GPIO 17** (`GPS_RX_PIN`) |
-| **RX** | **GPIO 18** (`GPS_TX_PIN`) |
+| **TX** | **GPIO 44 / RXD** (`GPS_RX_PIN`) |
+| **RX** | **GPIO 43 / TXD** (`GPS_TX_PIN`, opcional) |
 
-TX do GPS vai no RX do ESP e vice-versa. Se preferir outros GPIOs livres do conector
-da placa, troque `GPS_RX_PIN`/`GPS_TX_PIN` no `config.h`.
+TX do GPS vai no RX do ESP e vice-versa. Para usar GPIO43/44, deixe
+**USB CDC On Boot: Enabled** (o Monitor Serial passa a ir pela USB e a UART0 fica
+livre). Qualquer outro GPIO livre do conector também serve: basta trocar
+`GPS_RX_PIN`/`GPS_TX_PIN` no `config.h`. Só o fio TX do GPS é obrigatório; sem o
+RX, use `GPS_TX_PIN -1`.
 
 > ⚠️ **Confira os pinos do display e do touch.** Não consegui confirmar a pinagem exata
 > da versão *Touch* da placa. Os valores em `config.h` precisam ser comparados com o
@@ -56,7 +59,7 @@ da placa, troque `GPS_RX_PIN`/`GPS_TX_PIN` no `config.h`.
    - **GFX Library for Arduino** (moononournation), versão 1.4 ou mais nova
 4. Configurações da placa (menu **Ferramentas**):
    - Placa: **ESP32S3 Dev Module**
-   - USB CDC On Boot: **Enabled** (para ver o `Serial` pela USB)
+   - USB CDC On Boot: **Enabled** (obrigatório com o GPS em GPIO43/44)
    - Flash Size: o tamanho da sua placa (ex.: 16MB)
    - PSRAM: **OPI PSRAM** se a placa tiver (recomendado, o buffer da tela usa 110 KB)
    - Partition Scheme: **Default** já serve (a base ocupa ~200 KB)
