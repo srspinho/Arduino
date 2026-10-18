@@ -44,6 +44,28 @@ static void textoCentro(const char *txt, int y, uint8_t tamanho, uint16_t cor) {
   gfx->print(txt);
 }
 
+// Envia o canvas para o display, espelhando a imagem se configurado no config.h
+static void enviarTela() {
+#if LCD_ESPELHAR_X || LCD_ESPELHAR_Y
+  uint16_t *fb = gfx->getFramebuffer();
+  if (fb) {
+#if LCD_ESPELHAR_X
+    for (int y = 0; y < LCD_ALTURA; y++) {
+      uint16_t *ini = fb + y * LCD_LARGURA, *fim = ini + LCD_LARGURA - 1;
+      while (ini < fim) { uint16_t t = *ini; *ini++ = *fim; *fim-- = t; }
+    }
+#endif
+#if LCD_ESPELHAR_Y
+    for (int y = 0; y < LCD_ALTURA / 2; y++) {
+      uint16_t *a = fb + y * LCD_LARGURA, *b = fb + (LCD_ALTURA - 1 - y) * LCD_LARGURA;
+      for (int x = 0; x < LCD_LARGURA; x++) { uint16_t t = a[x]; a[x] = b[x]; b[x] = t; }
+    }
+#endif
+  }
+#endif
+  gfx->flush();
+}
+
 bool telaIniciar() {
 #if ESP_ARDUINO_VERSION_MAJOR >= 3
   ledcAttach(LCD_BL, 5000, 8);
@@ -54,7 +76,7 @@ bool telaIniciar() {
   telaBrilho(0);
   if (!gfx->begin()) return false;
   gfx->fillScreen(COR_FUNDO);
-  gfx->flush();
+  enviarTela();
   return true;
 }
 
@@ -70,7 +92,7 @@ void telaMensagem(const char *linha1, const char *linha2) {
   gfx->fillScreen(COR_FUNDO);
   textoCentro(linha1, 130, 2, COR_TEXTO);
   if (linha2) textoCentro(linha2, 160, 1, COR_CINZA);
-  gfx->flush();
+  enviarTela();
 }
 
 static void desenharPlaca(int cx, int cy, uint8_t limite) {
@@ -154,5 +176,5 @@ void telaDesenhar(const DadosTela &d) {
     gfx->fillRect(12, 304, (int)((larguraBarra - 4) * frac), 8, piscaVermelho ? COR_TEXTO : corInfo);
   }
 
-  gfx->flush();
+  enviarTela();
 }

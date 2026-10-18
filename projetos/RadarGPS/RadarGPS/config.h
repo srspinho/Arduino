@@ -43,6 +43,13 @@
 #define LCD_OFFSET_Y 0
 #define LCD_IPS      true  // se as cores aparecerem invertidas, troque para false
 
+// Imagem espelhada? 1 = inverte esquerda/direita (X) ou cima/baixo (Y).
+// Texto ao contrario como num espelho -> LCD_ESPELHAR_X 1
+// Texto de cabeca para baixo e espelhado -> LCD_ESPELHAR_Y 1 (com X 0)
+// Tela girada 180 graus (de cabeca para baixo, mas legivel) -> X 1 e Y 1
+#define LCD_ESPELHAR_X 1
+#define LCD_ESPELHAR_Y 0
+
 // Botao BOOT da placa (GPIO0): toque curto = mudo, toque longo = brilho.
 // Funciona como alternativa ao touch.
 #define PINO_BOTAO 0

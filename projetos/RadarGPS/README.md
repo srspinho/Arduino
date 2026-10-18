@@ -122,7 +122,8 @@ limite e já depois do radar.
 - O BN-180 vem configurado para 1 atualização por segundo (a 100 km/h, ~28 m entre
   leituras). Isso basta para alertas a centenas de metros.
 - **Tela:** o display é inicializado com a classe `Arduino_ST7789`, que usa os comandos
-  padrão também aceitos pelo JD9853. Se a imagem aparecer com cores invertidas, troque
+  padrão também aceitos pelo JD9853. Se a imagem aparecer espelhada, ajuste
+  `LCD_ESPELHAR_X`/`LCD_ESPELHAR_Y`. Se aparecer com cores invertidas, troque
   `LCD_IPS` no `config.h`. Se aparecer deslocada, ajuste `LCD_OFFSET_X`. Se ficar em
   branco ou com ruído, compare com a sequência de inicialização do demo da Waveshare.
 - O touch AXS5106L é usado apenas para detectar o toque. Se ele não for encontrado no
