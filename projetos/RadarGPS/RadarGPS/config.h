@@ -12,9 +12,8 @@
 #define PLACA_COM_TOUCH 1
 
 #if PLACA_COM_TOUCH
-// !!! CONFIRA estes pinos no arquivo "pin_config.h" do demo Arduino da Waveshare
-// !!! (wiki ESP32-S3-Touch-LCD-1.47 -> Resources -> Demo). Se forem diferentes,
-// !!! basta trocar os numeros abaixo.
+// Pinos conferidos com o diagrama de pinagem da Waveshare (ESP32-S3-Touch-LCD-1.47).
+// Obs.: GPIO13-18 sao do cartao SD e GPIO41/42 (I2C) sao compartilhados com o touch.
 #define LCD_SCLK 38
 #define LCD_MOSI 39
 #define LCD_CS   21
@@ -63,13 +62,12 @@
 //  Ligacao:  BN-180 TX -> GPS_RX_PIN     BN-180 RX -> GPS_TX_PIN
 //            BN-180 VCC -> 3V3 (ou 5V)   BN-180 GND -> GND
 //
-//  Qualquer GPIO livre do conector serve (o ESP32-S3 roteia a UART para
-//  qualquer pino). O padrao usa os pinos marcados TXD/RXD (GPIO43/44); para
-//  isso, deixe "USB CDC On Boot: Enabled", assim o Serial do PC vai pela USB.
+//  Usa os pinos GPIO1 e GPIO2 do conector lateral (livres: GPIO1 a GPIO11,
+//  exceto GPIO3, que e pino de boot). Qualquer outro GPIO livre tambem serve.
 //  So o fio TX do GPS e obrigatorio: sem o RX, use GPS_TX_PIN -1.
 // -----------------------------------------------------------------------------
-#define GPS_RX_PIN 44   // RXD no conector
-#define GPS_TX_PIN 43   // TXD no conector
+#define GPS_RX_PIN 1   // <- TX do BN-180
+#define GPS_TX_PIN 2   // -> RX do BN-180
 #define GPS_BAUD   9600   // padrao de fabrica do BN-180
 
 // Fuso horario para o relogio da barra de status (Brasilia = -3)

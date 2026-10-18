@@ -34,20 +34,17 @@ projetos/RadarGPS/
 |--------|----------|
 | VCC (vermelho) | 3V3 (ou 5V) |
 | GND (preto) | GND |
-| **TX** | **GPIO 44 / RXD** (`GPS_RX_PIN`) |
-| **RX** | **GPIO 43 / TXD** (`GPS_TX_PIN`, opcional) |
+| **TX** | **GPIO 1** (`GPS_RX_PIN`) |
+| **RX** | **GPIO 2** (`GPS_TX_PIN`, opcional) |
 
-TX do GPS vai no RX do ESP e vice-versa. Para usar GPIO43/44, deixe
-**USB CDC On Boot: Enabled** (o Monitor Serial passa a ir pela USB e a UART0 fica
-livre). Qualquer outro GPIO livre do conector também serve: basta trocar
-`GPS_RX_PIN`/`GPS_TX_PIN` no `config.h`. Só o fio TX do GPS é obrigatório; sem o
-RX, use `GPS_TX_PIN -1`.
+TX do GPS vai no RX do ESP e vice-versa. Os dois pinos ficam no conector lateral
+esquerdo, logo abaixo do RST. Outros GPIOs livres do conector (4 a 11) também servem;
+basta trocar `GPS_RX_PIN`/`GPS_TX_PIN` no `config.h`. Evite GPIO13 a GPIO18 (cartão
+SD), GPIO41/42 (touch) e GPIO3 (pino de boot). Só o fio TX do GPS é obrigatório; sem
+o RX, use `GPS_TX_PIN -1`.
 
-> ⚠️ **Confira os pinos do display e do touch.** Não consegui confirmar a pinagem exata
-> da versão *Touch* da placa. Os valores em `config.h` precisam ser comparados com o
-> arquivo `pin_config.h` do demo Arduino oficial (wiki da Waveshare →
-> *ESP32-S3-Touch-LCD-1.47* → *Resources/Demo*). Os pinos da versão **sem touch**
-> (`PLACA_COM_TOUCH 0`) vêm da wiki e estão corretos para aquela placa.
+Os pinos do display, do touch e do cartão SD foram conferidos com o diagrama de
+pinagem oficial da Waveshare.
 
 ## Preparando a Arduino IDE
 
@@ -59,7 +56,7 @@ RX, use `GPS_TX_PIN -1`.
    - **GFX Library for Arduino** (moononournation), versão 1.4 ou mais nova
 4. Configurações da placa (menu **Ferramentas**):
    - Placa: **ESP32S3 Dev Module**
-   - USB CDC On Boot: **Enabled** (obrigatório com o GPS em GPIO43/44)
+   - USB CDC On Boot: **Enabled** (para ver o `Serial` pela USB)
    - Flash Size: o tamanho da sua placa (ex.: 16MB)
    - PSRAM: **OPI PSRAM** se a placa tiver (recomendado, o buffer da tela usa 110 KB)
    - Partition Scheme: **Default** já serve (a base ocupa ~200 KB)
