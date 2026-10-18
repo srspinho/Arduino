@@ -3,21 +3,24 @@
 O RadarGPS mostra no display da Waveshare ESP32-S3 1.47" a velocidade atual. Ele avisa
 quando o veículo se aproxima de um radar, semáforo com câmera, posto da PRF ou pedágio
 cadastrado em `dados/maparadar.csv`. Quando a velocidade passa do limite do radar à
-frente, a tela pisca em vermelho e o buzzer apita (se houver um ligado).
+frente, a tela pisca em vermelho e soa um aviso.
 
 ```
 projetos/RadarGPS/
 ├── RadarGPS/              <- pasta do sketch (abra RadarGPS.ino na Arduino IDE)
-│   ├── RadarGPS.ino       programa principal (GPS, botões, buzzer)
+│   ├── RadarGPS.ino       programa principal (GPS, botões, avisos)
 │   ├── config.h           PINOS e AJUSTES; é o único arquivo que você precisa editar
 │   ├── detector.h/.cpp    lógica de "radar à frente" e excesso de velocidade
 │   ├── tela.h/.cpp        interface gráfica
+│   ├── som.h/.cpp         saída de áudio (I2S ou buzzer)
+│   ├── sintetizador.*     gerador dos chimes
 │   ├── touch_axs5106l.*   leitura do touch
 │   └── radares_db.h       base de radares (GERADA a partir do CSV)
 ├── dados/maparadar.csv    base original
 └── ferramentas/
     ├── gerar_radares.py   CSV -> radares_db.h
-    └── teste_detector.cpp simulação do detector no PC
+    ├── teste_detector.cpp simulação do detector no PC
+    └── gerar_previa_sons.cpp  gera .wav dos avisos sonoros
 ```
 
 ## Hardware
@@ -26,7 +29,8 @@ projetos/RadarGPS/
 |------|------------|
 | Waveshare **ESP32-S3-Touch-LCD-1.47** | 172×320, driver JD9853, touch AXS5106L |
 | GPS **Beitian BN-180** | u-blox M8, NMEA a 9600 baud (padrão de fábrica) |
-| Buzzer ativo 3,3 V (opcional) | defina `PINO_BUZZER` no `config.h` |
+| Módulo I2S **MAX98357A** + alto-falante 4–8 Ω, 2–3 W (recomendado) | chime sintetizado (`SOM_MODO 2`) |
+| ou buzzer ativo 3,3 V | bipes simples (`SOM_MODO 1`, `PINO_BUZZER`) |
 
 ### Ligação do GPS
 
@@ -45,6 +49,21 @@ o RX, use `GPS_TX_PIN -1`.
 
 Os pinos do display, do touch e do cartão SD foram conferidos com o diagrama de
 pinagem oficial da Waveshare.
+
+### Ligação do som (MAX98357A)
+
+| MAX98357A | ESP32-S3 |
+|-----------|----------|
+| VIN | 5V/VBUS (mais volume) ou 3V3 |
+| GND | GND |
+| BCLK | **GPIO 4** (`I2S_BCLK`) |
+| LRC | **GPIO 5** (`I2S_LRC`) |
+| DIN | **GPIO 6** (`I2S_DIN`) |
+| SD, GAIN | deixe desligados |
+
+O alto-falante vai nos bornes + e − do módulo. O volume se ajusta em `SOM_VOLUME`
+(0 a 100). Se o som sair alto demais, ligue o pino GAIN do módulo ao VIN, o que
+reduz o ganho para 6 dB.
 
 ## Preparando a Arduino IDE
 
@@ -88,6 +107,27 @@ detectado, o que ajuda nos testes.
 Tipos sem limite cadastrado (limite 0 no CSV, como semáforo com câmera e a maioria dos
 pedágios) mostram "!" na placa e nunca entram em EXCESSO. O pedágio vem
 **desligado** por padrão (`ALERTA_PEDAGIO 0`).
+
+### Avisos sonoros
+
+Os sons são sintetizados em tempo real pelo ESP32 (`sintetizador.cpp`). Cada nota é
+um sino: a nota base mais três harmônicos que decaem suavemente.
+
+| Momento | Som |
+|---------|-----|
+| Ao ligar | duas notas subindo (Dó–Sol) |
+| Radar à frente | "ding-dong-dong" descendente (Sol–Mi–Dó), estilo aeroporto |
+| Acima do limite | três notas agudas rápidas, repetidas a cada 1,5 s (`SOM_REPETIR_EXCESSO_MS`) |
+
+Para ouvir no PC antes de montar:
+
+```bash
+cd ferramentas
+g++ -O2 -I../RadarGPS gerar_previa_sons.cpp ../RadarGPS/sintetizador.cpp -o previa && ./previa
+```
+
+Isso gera `som_inicio.wav`, `som_radar.wav` e `som_excesso.wav`. Para mudar as notas,
+edite as tabelas `NOTAS_*` em `sintetizador.cpp`.
 
 ### Controles
 

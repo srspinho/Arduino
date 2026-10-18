@@ -4,8 +4,8 @@
 //  - Le a posicao, velocidade e rumo do GPS (NMEA, via TinyGPSPlus)
 //  - Procura na base embarcada (radares_db.h, ~20 mil pontos) o radar mais
 //    proximo A FRENTE do veiculo
-//  - Mostra velocidade, limite do radar e distancia; pisca em vermelho e apita
-//    se a velocidade estiver acima do limite
+//  - Mostra velocidade, limite do radar e distancia; toca um chime ao se
+//    aproximar e pisca em vermelho com aviso sonoro se estiver acima do limite
 //
 //  Bibliotecas (Gerenciador de Bibliotecas da IDE):
 //    - "TinyGPSPlus" (Mikal Hart)
@@ -16,6 +16,7 @@
 #include "config.h"
 #include "detector.h"
 #include "tela.h"
+#include "som.h"
 #if PLACA_COM_TOUCH
 #include "touch_axs5106l.h"
 TouchAXS5106L touch;
@@ -30,31 +31,23 @@ const uint8_t NIVEIS_BRILHO[] = { 255, 120, 40 };
 uint8_t nivelBrilho = 0;
 
 // ---------------------------------------------------------------------------
-//  Buzzer (nao bloqueante)
+//  Avisos sonoros (o som em si fica em som.cpp)
 // ---------------------------------------------------------------------------
-uint8_t bipsPendentes = 0;
-uint32_t proximoBipMs = 0;
-uint32_t desligarBuzzerMs = 0;
-
-void bipar(uint8_t quantidade) {
-  if (PINO_BUZZER < 0 || mudo) return;
-  bipsPendentes = quantidade;
+void avisar(Som som) {
+  if (!mudo) somTocar(som);
 }
 
-void atualizarBuzzer(uint32_t agora, EstadoAlerta estado) {
-  if (PINO_BUZZER < 0) return;
-  if (desligarBuzzerMs && agora >= desligarBuzzerMs) {
-    digitalWrite(PINO_BUZZER, LOW);
-    desligarBuzzerMs = 0;
+// Enquanto estiver acima do limite, repete o aviso de excesso
+void atualizarSom(uint32_t agora, EstadoAlerta estado) {
+  static uint32_t ultimoExcessoMs = 0;
+  static bool estavaEmExcesso = false;
+  bool excesso = estado == ALERTA_EXCESSO;
+  if (excesso && (!estavaEmExcesso || agora - ultimoExcessoMs >= SOM_REPETIR_EXCESSO_MS)) {
+    avisar(SOM_EXCESSO);
+    ultimoExcessoMs = agora;
   }
-  // Em excesso de velocidade: bipe continuo a cada 600 ms
-  if (estado == ALERTA_EXCESSO && !mudo && bipsPendentes == 0) bipsPendentes = 1;
-  if (bipsPendentes && !desligarBuzzerMs && agora >= proximoBipMs) {
-    digitalWrite(PINO_BUZZER, HIGH);
-    desligarBuzzerMs = agora + 120;
-    proximoBipMs = agora + (estado == ALERTA_EXCESSO ? 600 : 250);
-    bipsPendentes--;
-  }
+  estavaEmExcesso = excesso;
+  somAtualizar(agora);
 }
 
 // ---------------------------------------------------------------------------
@@ -85,10 +78,7 @@ void tratarEntrada(uint32_t agora) {
     longoTratado = true;
   } else if (!pressionado && pressionadoAntes && !longoTratado && agora - inicioToqueMs >= 40) {
     mudo = !mudo;
-    if (mudo && PINO_BUZZER >= 0) {
-      bipsPendentes = 0;
-      digitalWrite(PINO_BUZZER, LOW);
-    }
+    if (mudo) somParar();
   }
   pressionadoAntes = pressionado;
 }
@@ -99,10 +89,7 @@ void setup() {
   SerialGPS.begin(GPS_BAUD, SERIAL_8N1, GPS_RX_PIN, GPS_TX_PIN);
 
   pinMode(PINO_BOTAO, INPUT_PULLUP);
-  if (PINO_BUZZER >= 0) {
-    pinMode(PINO_BUZZER, OUTPUT);
-    digitalWrite(PINO_BUZZER, LOW);
-  }
+  somIniciar();
 
   if (!telaIniciar()) Serial.println("ERRO: falha ao iniciar a tela");
   telaMensagem("RadarGPS", "iniciando...");
@@ -113,7 +100,7 @@ void setup() {
     Serial.println("Aviso: touch nao encontrado - use o botao BOOT");
 #endif
   Serial.println("RadarGPS pronto");
-  bipar(1);
+  avisar(SOM_INICIO);
 }
 
 void loop() {
@@ -129,7 +116,7 @@ void loop() {
   if (gps.location.isUpdated()) {
     const InfoAlvo &a = detector.atualizar(gps.location.lat(), gps.location.lng(), velKmh,
                                            gps.course.deg(), gps.course.isValid(), agora);
-    if (a.novo) bipar(2);
+    if (a.novo) avisar(SOM_RADAR);
 
     Serial.printf("lat=%.6f lon=%.6f vel=%.0f rumo=%.0f sat=%u", gps.location.lat(),
                   gps.location.lng(), velKmh, gps.course.deg(), gps.satellites.value());
@@ -144,7 +131,7 @@ void loop() {
   if (!gpsFix) semAlvo.estado = ALERTA_NENHUM;
 
   tratarEntrada(agora);
-  atualizarBuzzer(agora, semAlvo.estado);
+  atualizarSom(agora, semAlvo.estado);
 
   static uint32_t ultimoDesenho = 0;
   if (agora - ultimoDesenho >= 100) {  // 10 quadros por segundo

@@ -60,9 +60,25 @@
 // Funciona como alternativa ao touch.
 #define PINO_BOTAO 0
 
-// Buzzer opcional (buzzer ATIVO 3.3V entre o pino e GND, ou via transistor).
-// Use -1 se nao tiver buzzer.
-#define PINO_BUZZER -1
+// -----------------------------------------------------------------------------
+//  Som
+//  0 = sem som
+//  1 = buzzer ATIVO 3.3V (bipes simples) no PINO_BUZZER
+//  2 = chime sintetizado (sino suave) via modulo I2S MAX98357A + alto-falante
+//      MAX98357A:  BCLK -> I2S_BCLK   LRC -> I2S_LRC   DIN -> I2S_DIN
+//                  VIN -> 5V (VBUS) ou 3V3   GND -> GND   SD/GAIN: deixe soltos
+// -----------------------------------------------------------------------------
+#define SOM_MODO 2
+
+#define I2S_BCLK 4
+#define I2S_LRC  5
+#define I2S_DIN  6
+#define SOM_VOLUME 70        // 0 a 100
+
+#define PINO_BUZZER 7        // so usado com SOM_MODO 1
+
+// Enquanto estiver acima do limite, repete o aviso de excesso a cada X ms
+#define SOM_REPETIR_EXCESSO_MS 1500
 
 // -----------------------------------------------------------------------------
 //  GPS Beitian BN-180
