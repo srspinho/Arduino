@@ -4,6 +4,8 @@
 
 // O desenho e feito num "canvas" na RAM e enviado inteiro para o display,
 // assim a tela nao pisca. (172 x 320 x 2 bytes = 110 KB)
+// O buffer fica na orientacao nativa (em pe); a rotacao do canvas faz o desenho
+// sair na horizontal (320 x 172).
 static Arduino_DataBus *bus = new Arduino_ESP32SPI(LCD_DC, LCD_CS, LCD_SCLK, LCD_MOSI, GFX_NOT_DEFINED);
 // O JD9853 da versao touch aceita os comandos padrao (MIPI DCS) do ST7789.
 // Se a imagem ficar errada, veja a secao "Tela" do README.
@@ -26,21 +28,29 @@ static const int CANAL_BL = 0;
 static const char *nomeCurto(uint8_t tipo) {
   switch (tipo) {
     case TIPO_RADAR_FIXO:         return "RADAR FIXO";
-    case TIPO_SEMAFORO_RADAR:     return "SEMAF.+RADAR";
+    case TIPO_SEMAFORO_RADAR:     return "SEMAF+RADAR";
     case TIPO_RADAR_MOVEL:        return "RADAR MOVEL";
-    case TIPO_SEMAFORO_CAMERA:    return "SEMAF.+CAM.";
-    case TIPO_POLICIA_RODOVIARIA: return "POLICIA ROD.";
+    case TIPO_SEMAFORO_CAMERA:    return "SEMAF+CAM.";
+    case TIPO_POLICIA_RODOVIARIA: return "POLICIA ROD";
     case TIPO_PEDAGIO:            return "PEDAGIO";
     default:                      return "?";
   }
 }
 
+// Layout horizontal (320 x 172):
+//   barra de status no topo; velocidade a esquerda; alerta a direita;
+//   barra de aproximacao ao longo da borda de baixo.
+static const int LARG = 320;
+static const int ALT = 172;
+static const int CX_VEL = 90;      // centro da coluna da velocidade
+static const int CX_ALERTA = 250;  // centro da coluna do alerta
+
 // A fonte padrao tem 6 x 8 pixels por caractere (multiplicado por "tamanho")
-static void textoCentro(const char *txt, int y, uint8_t tamanho, uint16_t cor) {
+static void textoCentro(const char *txt, int cx, int y, uint8_t tamanho, uint16_t cor) {
   int largura = strlen(txt) * 6 * tamanho;
   gfx->setTextSize(tamanho);
   gfx->setTextColor(cor);
-  gfx->setCursor((LCD_LARGURA - largura) / 2, y);
+  gfx->setCursor(cx - largura / 2, y);
   gfx->print(txt);
 }
 
@@ -75,6 +85,7 @@ bool telaIniciar() {
 #endif
   telaBrilho(0);
   if (!gfx->begin()) return false;
+  gfx->setRotation(LCD_ROTACAO);
   gfx->fillScreen(COR_FUNDO);
   enviarTela();
   return true;
@@ -90,14 +101,14 @@ void telaBrilho(uint8_t nivel) {
 
 void telaMensagem(const char *linha1, const char *linha2) {
   gfx->fillScreen(COR_FUNDO);
-  textoCentro(linha1, 130, 2, COR_TEXTO);
-  if (linha2) textoCentro(linha2, 160, 1, COR_CINZA);
+  textoCentro(linha1, LARG / 2, 66, 2, COR_TEXTO);
+  if (linha2) textoCentro(linha2, LARG / 2, 96, 1, COR_CINZA);
   enviarTela();
 }
 
 static void desenharPlaca(int cx, int cy, uint8_t limite) {
-  gfx->fillCircle(cx, cy, 42, COR_VERMELHO);
-  gfx->fillCircle(cx, cy, 33, RGB565_WHITE);
+  gfx->fillCircle(cx, cy, 40, COR_VERMELHO);
+  gfx->fillCircle(cx, cy, 31, RGB565_WHITE);
   char txt[8];
   if (limite > 0) snprintf(txt, sizeof(txt), "%u", limite);
   else strcpy(txt, "!");
@@ -113,67 +124,75 @@ void telaDesenhar(const DadosTela &d) {
   const InfoAlvo *a = d.alvo;
   bool temAlvo = a && a->estado != ALERTA_NENHUM;
   bool excesso = temAlvo && a->estado == ALERTA_EXCESSO;
-  // Em excesso o fundo pisca em vermelho (4 vezes por segundo)
-  bool piscaVermelho = excesso && ((millis() / 250) % 2 == 0);
+  // Em excesso o alerta pisca em vermelho (4 vezes por segundo)
+  bool pisca = excesso && ((millis() / 250) % 2 == 0);
+#if LCD_ALERTA_TELA_CHEIA
+  bool fundoVermelho = pisca;
+#else
+  bool fundoVermelho = false;
+#endif
 
-  gfx->fillScreen(piscaVermelho ? COR_VERMELHO : COR_FUNDO);
+  gfx->fillScreen(fundoVermelho ? COR_VERMELHO : COR_FUNDO);
+  if (pisca && !fundoVermelho) {
+    // Moldura vermelha piscando: chama a atencao sem clarear a tela a noite
+    for (int i = 0; i < 6; i++) gfx->drawRect(i, i, LARG - 2 * i, ALT - 2 * i, COR_VERMELHO);
+  }
   char txt[24];
 
   // --- Barra de status ---
   gfx->setTextSize(2);
   gfx->setTextColor(d.gpsFix ? COR_VERDE : COR_LARANJA);
-  gfx->setCursor(2, 2);
+  gfx->setCursor(8, 8);
   snprintf(txt, sizeof(txt), "%dsat", d.satelites);
   gfx->print(txt);
+  if (d.mudo) textoCentro("MUDO", LARG / 2, 8, 2, fundoVermelho ? COR_TEXTO : COR_VERMELHO);
   if (d.horaValida) {
     snprintf(txt, sizeof(txt), "%02d:%02d", d.hora, d.minuto);
     gfx->setTextColor(COR_TEXTO);
-    gfx->setCursor(LCD_LARGURA - 5 * 12 - 2, 2);
+    gfx->setCursor(LARG - 5 * 12 - 8, 8);
     gfx->print(txt);
   }
-  if (d.mudo) textoCentro("MUDO", 24, 1, piscaVermelho ? COR_TEXTO : COR_VERMELHO);
-  gfx->drawFastHLine(0, 34, LCD_LARGURA, COR_CINZA);
+  gfx->drawFastHLine(8, 28, LARG - 16, COR_CINZA);
+  gfx->drawFastVLine(180, 36, 112, COR_CINZA);
 
-  // --- Velocidade ---
+  // --- Velocidade (coluna da esquerda) ---
   uint16_t corVel = COR_TEXTO;
   if (!d.gpsFix) {
     corVel = COR_CINZA;
   } else if (temAlvo && a->limiteKmh > 0) {
-    if (excesso) corVel = piscaVermelho ? COR_TEXTO : COR_VERMELHO;
+    if (excesso) corVel = fundoVermelho ? COR_TEXTO : COR_VERMELHO;
     else if (d.velKmh >= a->limiteKmh - MARGEM_AMARELO_KMH) corVel = COR_AMARELO;
   }
   if (d.gpsFix) snprintf(txt, sizeof(txt), "%d", (int)(d.velKmh + 0.5f));
   else strcpy(txt, "--");
-  textoCentro(txt, 46, 9, corVel);
-  textoCentro("km/h", 124, 2, piscaVermelho ? COR_TEXTO : COR_CINZA);
-  gfx->drawFastHLine(0, 148, LCD_LARGURA, COR_CINZA);
+  textoCentro(txt, CX_VEL, 44, 9, corVel);
+  textoCentro("km/h", CX_VEL, 126, 2, fundoVermelho ? COR_TEXTO : COR_CINZA);
 
-  // --- Area do alerta ---
+  // --- Alerta (coluna da direita) ---
   if (!d.gpsFix) {
-    textoCentro("BUSCANDO", 200, 2, COR_LARANJA);
-    textoCentro("SATELITES...", 222, 2, COR_LARANJA);
-    textoCentro("Deixe a antena com", 262, 1, COR_CINZA);
-    textoCentro("vista para o ceu", 274, 1, COR_CINZA);
+    textoCentro("BUSCANDO", CX_ALERTA, 68, 2, COR_LARANJA);
+    textoCentro("SATELITES", CX_ALERTA, 90, 2, COR_LARANJA);
+    textoCentro("antena p/ o ceu", CX_ALERTA, 122, 1, COR_CINZA);
   } else if (!temAlvo) {
-    textoCentro("VIA LIVRE", 215, 2, COR_VERDE);
-    textoCentro("nenhum radar a frente", 245, 1, COR_CINZA);
+    textoCentro("VIA LIVRE", CX_ALERTA, 72, 2, COR_VERDE);
+    textoCentro("nenhum radar", CX_ALERTA, 100, 1, COR_CINZA);
+    textoCentro("a frente", CX_ALERTA, 112, 1, COR_CINZA);
   } else {
-    desenharPlaca(LCD_LARGURA / 2, 198, a->limiteKmh);
+    desenharPlaca(CX_ALERTA, 76, a->limiteKmh);
 
-    uint16_t corInfo = piscaVermelho ? COR_TEXTO : (excesso ? COR_VERMELHO : COR_AMARELO);
-    textoCentro(excesso ? "REDUZA!" : nomeCurto(a->tipo), 248, 2, corInfo);
+    uint16_t corInfo = fundoVermelho ? COR_TEXTO : (excesso ? COR_VERMELHO : COR_AMARELO);
+    textoCentro(excesso ? "REDUZA!" : nomeCurto(a->tipo), CX_ALERTA, 122, 2, corInfo);
 
     if (a->distanciaM >= 1000) snprintf(txt, sizeof(txt), "%.1f km", a->distanciaM / 1000.0f);
     else snprintf(txt, sizeof(txt), "%d m", ((int)a->distanciaM / 10) * 10);
-    textoCentro(txt, 270, 3, COR_TEXTO);
+    textoCentro(txt, CX_ALERTA, 142, 2, COR_TEXTO);
 
-    // Barra que enche conforme o radar se aproxima
-    int larguraBarra = LCD_LARGURA - 20;
+    // Barra na borda de baixo que enche conforme o radar se aproxima
     float frac = 1.0f - a->distanciaM / a->distanciaAlertaM;
     if (frac < 0) frac = 0;
     if (frac > 1) frac = 1;
-    gfx->drawRect(10, 302, larguraBarra, 12, COR_TEXTO);
-    gfx->fillRect(12, 304, (int)((larguraBarra - 4) * frac), 8, piscaVermelho ? COR_TEXTO : corInfo);
+    gfx->drawRect(10, 162, LARG - 20, 8, COR_CINZA);
+    gfx->fillRect(12, 164, (int)((LARG - 24) * frac), 4, fundoVermelho ? COR_TEXTO : corInfo);
   }
 
   enviarTela();

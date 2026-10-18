@@ -1,4 +1,4 @@
-// Interface grafica (tela 172 x 320 em pe)
+// Interface grafica (tela na horizontal, 320 x 172)
 #pragma once
 #include <Arduino.h>
 #include "detector.h"

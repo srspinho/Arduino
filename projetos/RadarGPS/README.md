@@ -79,7 +79,8 @@ detectado, o que ajuda nos testes.
 4. Com um radar "travado", o estado do alerta é um destes:
    - **APROXIMANDO** (amarelo): mostra a placa com o limite, o tipo, a distância e uma
      barra de progresso. O velocímetro fica amarelo a até 5 km/h do limite.
-   - **EXCESSO** (vermelho piscando + "REDUZA!" + bipes): velocidade > limite +
+   - **EXCESSO** (moldura vermelha piscando + "REDUZA!" + bipes; com
+     `LCD_ALERTA_TELA_CHEIA 1` a tela inteira pisca): velocidade > limite +
      `TOLERANCIA_KMH` (0 por padrão).
 5. Quando o veículo passa pelo radar, o alerta é liberado. Esse radar e os vizinhos a
    até 80 m (por exemplo, o radar do outro sentido) ficam ignorados por 2 minutos.
@@ -123,7 +124,8 @@ limite e já depois do radar.
   leituras). Isso basta para alertas a centenas de metros.
 - **Tela:** o display é inicializado com a classe `Arduino_ST7789`, que usa os comandos
   padrão também aceitos pelo JD9853. Se a imagem aparecer espelhada, ajuste
-  `LCD_ESPELHAR_X`/`LCD_ESPELHAR_Y`. Se aparecer com cores invertidas, troque
+  `LCD_ESPELHAR_X`/`LCD_ESPELHAR_Y`. Se ficar de cabeça para baixo na horizontal,
+  use `LCD_ROTACAO 3`. Se o fundo aparecer branco (cores invertidas), troque
   `LCD_IPS` no `config.h`. Se aparecer deslocada, ajuste `LCD_OFFSET_X`. Se ficar em
   branco ou com ruído, compare com a sequência de inicialização do demo da Waveshare.
 - O touch AXS5106L é usado apenas para detectar o toque. Se ele não for encontrado no

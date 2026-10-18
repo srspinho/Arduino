@@ -40,7 +40,14 @@
 #define LCD_ALTURA  320
 #define LCD_OFFSET_X 34    // o painel de 172 px fica centralizado na RAM de 240 px
 #define LCD_OFFSET_Y 0
-#define LCD_IPS      true  // se as cores aparecerem invertidas, troque para false
+#define LCD_IPS      false // cores invertidas (fundo branco em vez de preto)? troque true/false
+
+// Orientacao: 1 = horizontal, 3 = horizontal girada 180 graus (USB do outro lado)
+#define LCD_ROTACAO  1
+
+// Excesso de velocidade: 0 = pisca so uma moldura vermelha (fundo continua preto,
+// melhor a noite); 1 = pisca a tela inteira em vermelho
+#define LCD_ALERTA_TELA_CHEIA 0
 
 // Imagem espelhada? 1 = inverte esquerda/direita (X) ou cima/baixo (Y).
 // Texto ao contrario como num espelho -> LCD_ESPELHAR_X 1
