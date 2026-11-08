@@ -5,6 +5,7 @@
   uma linha JSON por mensagem, e mostra em duas telas:
     1) AO VIVO   - KPM atual, pico, teclas da sessao, total e grafico dos ultimos 60 s
     2) TOP TECLAS - as 8 teclas mais usadas
+    3) MAPA DE CALOR - o teclado colorido pela frequencia de uso (ABNT2 ou ANSI)
 
   Toque na tela (ou aperte o botao BOOT) para trocar de tela.
 
@@ -16,9 +17,12 @@
   Protocolo (115200 baud, uma linha JSON terminada em '\n'):
     {"kpm":312,"peak":540,"sess":1834,"total":184233,"up":3605,
      "app":"cs2.exe","top":[["W",5123],["A",3301],["SPACE",2980]]}
+  e, a cada ~2 s, uma linha com o mapa de calor (intensidade 1..255 por tecla):
+    {"heat":{"W":255,"A":204,"SPACE":180},"hmax":5123}
 */
 
 #include "lgfx_cyd.h"
+#include "keyboard_layout.h"
 #include <ArduinoJson.h>
 
 // ---------------------------------------------------------------- configuracao
@@ -68,10 +72,24 @@ static bool     topDirty      = true;
 static uint16_t hist[HIST_N];
 static uint8_t  histHead = 0;           // proxima posicao a escrever
 
-enum Screen : uint8_t { SCR_LIVE = 0, SCR_TOP, SCR_COUNT };
+enum Screen : uint8_t { SCR_LIVE = 0, SCR_TOP, SCR_HEAT, SCR_COUNT };
 static Screen screen = SCR_LIVE;
 
-static char    lineBuf[1024];
+static char    lineBuf[2048];
+
+// mapa de calor: retangulos calculados a partir do layout + intensidade por tecla
+struct KeyRect {
+  const char *name;
+  const char *label;
+  int16_t     x, w;
+  uint8_t     row;
+};
+static const uint8_t MAX_KEYS = 100;
+static KeyRect  keys[MAX_KEYS];
+static uint8_t  keyCount  = 0;
+static uint8_t  heat[MAX_KEYS];
+static uint32_t heatMax   = 0;
+static bool     heatDirty = true;
 static size_t  lineLen = 0;
 
 // ---------------------------------------------------------------- utilidades
@@ -110,6 +128,22 @@ static uint16_t kpmColor(uint32_t kpm) {
 static void handleLine(const char *line) {
   JsonDocument doc;
   if (deserializeJson(doc, line)) return;  // linha invalida: ignora
+
+  JsonObject heatObj = doc["heat"];
+  if (!heatObj.isNull()) {
+    memset(heat, 0, sizeof(heat));
+    for (JsonPair kv : heatObj) {
+      const char *k = kv.key().c_str();
+      uint8_t v = kv.value() | 0;
+      for (uint8_t i = 0; i < keyCount; i++)   // sem break: ENTER ISO ocupa 2 retangulos
+        if (strcmp(keys[i].name, k) == 0) heat[i] = v;
+    }
+    heatMax = doc["hmax"] | 0;
+    heatDirty = true;
+    lastMsgMs = millis();
+    everConnected = true;
+    return;
+  }
 
   st.kpm   = doc["kpm"]   | 0;
   st.peak  = doc["peak"]  | 0;
@@ -279,10 +313,6 @@ static void drawGraph() {
   if (g == &sprGraph) sprGraph.pushSprite(GR_X, GR_Y);
 }
 
-static void drawLiveStatic() {
-  lcd.fillRect(0, 24, 320, 216, C_BG);
-}
-
 static void drawLiveDynamic() {
   drawKpm();
   drawStatBox(KPM_Y,                     "PICO (KPM)", st.peak,  C_ACC2);
@@ -290,12 +320,53 @@ static void drawLiveDynamic() {
   drawStatBox(KPM_Y + (BOX_H + 2) * 2,   "TOTAL",      st.total, C_ACCENT);
 }
 
+// ---------------------------------------------------------------- keycaps
+static void buildLayout() {
+  keyCount = 0;
+  for (uint8_t r = 0; r < LAYOUT_ROW_COUNT; r++) {
+    int16_t q = 0;
+    for (uint8_t i = 0; i < LAYOUT_ROWS[r].count; i++) {
+      const KeySpec &k = LAYOUT_ROWS[r].keys[i];
+      if (k.name && keyCount < MAX_KEYS) {
+        keys[keyCount++] = {k.name, k.label ? k.label : k.name,
+                            (int16_t)(q * QUARTER_PX), (int16_t)(k.w * QUARTER_PX), r};
+      }
+      q += k.w;
+    }
+  }
+}
+
+// rotulo amigavel de uma tecla (ex.: "BKSP" -> "Bksp"); nomes fora do layout ficam como estao
+static const char *labelFor(const char *name) {
+  for (uint8_t i = 0; i < keyCount; i++)
+    if (strcmp(keys[i].name, name) == 0 && keys[i].label[0]) return keys[i].label;
+  return name;
+}
+
+// desenha o texto de um keycap; trata as teclas que a fonte nao tem (Ç e acento agudo)
+static void drawKeyLabel(LovyanGFX *g, const char *label, int cx, int cy,
+                         uint16_t fg, uint16_t bg, bool big) {
+  g->setTextDatum(middle_center);
+  g->setTextColor(fg, bg);
+  if (strcmp(label, "CCED") == 0) {
+    g->setFont(&fonts::Font2);
+    g->drawString("C", cx, cy - 1);
+    g->drawFastVLine(cx, cy + 6, 2, fg);         // cedilha
+    g->drawFastHLine(cx - 1, cy + 8, 2, fg);
+    return;
+  }
+  if (strcmp(label, "ACUTE") == 0) {
+    g->drawLine(cx - 1, cy + 2, cx + 2, cy - 3, fg);  // acento agudo
+    g->drawLine(cx,     cy + 2, cx + 3, cy - 3, fg);
+    return;
+  }
+  if (big || strlen(label) == 1) g->setFont(&fonts::Font2);
+  else                           g->setFont(&fonts::Font0);
+  g->drawString(label, cx, cy);
+}
+
 // ---------------------------------------------------------------- tela TOP TECLAS
 static const int ROW_Y0 = 30, ROW_H = 26;
-
-static void drawTopStatic() {
-  lcd.fillRect(0, 24, 320, 216, C_BG);
-}
 
 static void drawTopRows() {
   uint32_t maxV = st.topCount ? st.topVal[0] : 1;
@@ -310,10 +381,7 @@ static void drawTopRows() {
       // caixa da tecla (estilo keycap)
       g->fillRoundRect(4, oy + 2, 64, ROW_H - 4, 4, C_PANEL);
       g->drawRoundRect(4, oy + 2, 64, ROW_H - 4, 4, C_GRID);
-      g->setFont(&fonts::Font2);
-      g->setTextDatum(middle_center);
-      g->setTextColor(C_TEXT, C_PANEL);
-      g->drawString(st.topKey[i], 36, oy + ROW_H / 2);
+      drawKeyLabel(g, labelFor(st.topKey[i]), 36, oy + ROW_H / 2, C_TEXT, C_PANEL, true);
 
       // barra proporcional
       const int bx = 74, bw = 170;
@@ -339,16 +407,92 @@ static void drawTopRows() {
   }
 }
 
+// ---------------------------------------------------------------- tela MAPA DE CALOR
+// escala azul -> ciano -> verde -> amarelo -> vermelho
+static uint16_t heatColor(uint8_t v) {
+  static const uint8_t stops[][4] = {   // posicao, R, G, B
+    {0, 20, 30, 90}, {64, 0, 110, 255}, {128, 0, 220, 170}, {192, 255, 220, 0}, {255, 255, 40, 40},
+  };
+  for (uint8_t i = 1; i < 5; i++) {
+    if (v <= stops[i][0]) {
+      const uint8_t *a = stops[i - 1], *b = stops[i];
+      int t = (v - a[0]) * 256 / (b[0] - a[0]);
+      return lcd.color565(a[1] + (b[1] - a[1]) * t / 256,
+                          a[2] + (b[2] - a[2]) * t / 256,
+                          a[3] + (b[3] - a[3]) * t / 256);
+    }
+  }
+  return lcd.color565(255, 40, 40);
+}
+
+static void drawHeatRows() {
+  for (uint8_t r = 0; r < LAYOUT_ROW_COUNT; r++) {
+    const LayoutRow &row = LAYOUT_ROWS[r];
+    LovyanGFX *g = sprRow.getBuffer() ? (LovyanGFX *)&sprRow : (LovyanGFX *)&lcd;
+    int oy = (g == &lcd) ? row.y : 0;
+
+    g->fillRect(0, oy, 320, row.h, C_BG);
+    for (uint8_t i = 0; i < keyCount; i++) {
+      if (keys[i].row != r) continue;
+      uint8_t v = heat[i];
+      uint16_t bg = v ? heatColor(v) : C_PANEL;
+      uint16_t fg = !v ? C_DIM : (v > 110 ? (uint16_t)0x0000 : C_TEXT);
+      int x = keys[i].x + 1, w = keys[i].w - 2;
+      g->fillRoundRect(x, oy, w, row.h, 3, bg);
+      if (keys[i].label[0])
+        drawKeyLabel(g, keys[i].label, x + w / 2, oy + row.h / 2, fg, bg, false);
+    }
+    if (g == &sprRow) sprRow.pushSprite(0, row.y);
+  }
+}
+
+static void drawHeatLegend() {
+  LovyanGFX *g = sprRow.getBuffer() ? (LovyanGFX *)&sprRow : (LovyanGFX *)&lcd;
+  // linha 1: barra de cores
+  int oy = (g == &lcd) ? 188 : 0;
+  g->fillRect(0, oy, 320, 26, C_BG);
+  for (int x = 0; x < 200; x++) g->drawFastVLine(60 + x, oy + 8, 10, heatColor(1 + x * 254 / 199));
+  g->setFont(&fonts::Font0);
+  g->setTextColor(C_DIM, C_BG);
+  g->setTextDatum(middle_right);
+  g->drawString("pouco", 55, oy + 13);
+  g->setTextDatum(middle_left);
+  g->drawString("muito", 265, oy + 13);
+  if (g == &sprRow) sprRow.pushSprite(0, 188);
+
+  // linha 2: legenda
+  oy = (g == &lcd) ? 214 : 0;
+  g->fillRect(0, oy, 320, 26, C_BG);
+  g->setFont(&fonts::Font2);
+  g->setTextDatum(middle_center);
+  char buf[64], num[16];
+  if (heatMax && st.topCount) {
+    fmtThousands(heatMax, num, sizeof(num));
+    const char *lbl = labelFor(st.topKey[0]);
+    if (strcmp(lbl, "CCED") == 0) lbl = "C cedilha";
+    else if (strcmp(lbl, "ACUTE") == 0) lbl = "acento";
+    snprintf(buf, sizeof(buf), "%s  |  mais usada: %s (%s)", LAYOUT_NAME, lbl, num);
+  } else {
+    snprintf(buf, sizeof(buf), "%s  |  aguardando dados...", LAYOUT_NAME);
+  }
+  g->setTextColor(C_DIM, C_BG);
+  g->drawString(buf, 160, oy + 12);
+  if (g == &sprRow) sprRow.pushSprite(0, 214);
+}
+
 // ---------------------------------------------------------------- navegacao
 static void redrawAll() {
   drawHeader();
   if (!linkUp && !everConnected) { drawWaiting(); return; }
-  if (screen == SCR_LIVE) { drawLiveStatic(); drawLiveDynamic(); drawGraph(); }
-  else                    { drawTopStatic();  drawTopRows(); }
+  lcd.fillRect(0, 24, 320, 216, C_BG);
+  if (screen == SCR_LIVE)     { drawLiveDynamic(); drawGraph(); }
+  else if (screen == SCR_TOP) { drawTopRows(); }
+  else                        { drawHeatRows(); drawHeatLegend(); }
 }
 
 static void nextScreen() {
   screen = (Screen)((screen + 1) % SCR_COUNT);
+  topDirty = heatDirty = false;  // a tela inteira e redesenhada abaixo
   redrawAll();
 }
 
@@ -375,7 +519,7 @@ static bool pollInput() {
 
 // ---------------------------------------------------------------- setup / loop
 void setup() {
-  Serial.setRxBufferSize(2048);
+  Serial.setRxBufferSize(4096);
   Serial.begin(SERIAL_BAUD);
 
   pinMode(PIN_BOOT, INPUT_PULLUP);
@@ -400,6 +544,8 @@ void setup() {
   sprHeader.createSprite(320, 24);
 
   memset(hist, 0, sizeof(hist));
+  memset(heat, 0, sizeof(heat));
+  buildLayout();
   redrawAll();
 }
 
@@ -436,9 +582,13 @@ void loop() {
     drawHeader();
     if (screen == SCR_LIVE) {
       drawLiveDynamic();
-    } else if (topDirty) {
+    } else if (screen == SCR_TOP && topDirty) {
       topDirty = false;
       drawTopRows();
+    } else if (screen == SCR_HEAT && heatDirty) {
+      heatDirty = false;
+      drawHeatRows();
+      drawHeatLegend();
     }
   }
 }

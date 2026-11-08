@@ -16,6 +16,11 @@ os totais e as teclas mais usadas.
 |---|---|
 | **Ao vivo** | KPM atual (a cor muda conforme a intensidade), pico de KPM, teclas da sessão, total histórico e gráfico dos últimos 60 s |
 | **Top teclas** | As 8 teclas mais usadas, com barras proporcionais |
+| **Mapa de calor** | O teclado inteiro (formato 75%, ABNT2 ou ANSI) colorido do azul ao vermelho conforme o uso de cada tecla |
+
+![Prévia da tela de mapa de calor](docs/preview_heatmap.png)
+
+*Prévia gerada por simulação, com a mesma geometria e as mesmas cores do firmware. No display real, as fontes são as bitmap do LovyanGFX.*
 
 O cabeçalho mostra o status da conexão, o aplicativo/jogo em foco e o tempo de sessão.
 Para trocar de tela, **toque no display** ou aperte o botão **BOOT**.
@@ -28,10 +33,13 @@ O LED RGB da placa indica o estado: **azul** = aguardando, **verde** = recebendo
 projects/keystats-panel/
 ├── firmware/keystats_cyd/
 │   ├── keystats_cyd.ino   # firmware do painel
-│   └── lgfx_cyd.h         # configuração do display/touch do CYD
-└── agent/
-    ├── keystats_agent.py  # agente que roda no PC
-    └── requirements.txt
+│   ├── lgfx_cyd.h         # configuração do display/touch do CYD
+│   └── keyboard_layout.h  # layouts ABNT2/ANSI do mapa de calor
+├── agent/
+│   ├── keystats_agent.py       # agente que roda no PC
+│   ├── test_keystats_agent.py  # testes (python -m unittest)
+│   └── requirements.txt
+└── docs/preview_heatmap.png
 ```
 
 ## 1. Gravar o firmware
@@ -52,6 +60,14 @@ Em `lgfx_cyd.h`:
 - Placa com **duas portas USB** (micro-USB + USB-C): descomente `#define CYD_PANEL_ST7789`.
 - Cores invertidas (fundo branco, cores "negativas"): descomente `#define CYD_INVERT_COLORS`.
 
+### Layout do teclado (mapa de calor)
+
+O padrão é **ABNT2** (com Ç). Para teclado americano:
+1. Em `keyboard_layout.h`, descomente `#define KEYSTATS_LAYOUT_ANSI`.
+2. Rode o agente com `--layout ansi`.
+
+Firmware e agente precisam usar o **mesmo** layout, porque o agente converte cada caractere para a tecla física (ex.: `!` conta como `1`, `?` como `/`, `^` como `~` no ABNT2).
+
 Ao ligar, deve aparecer a tela "KeyStats Panel — Conecte o USB e rode o agente no PC".
 
 ## 2. Rodar o agente no PC
@@ -71,6 +87,7 @@ Opções úteis:
 | `--demo` | gerar digitação simulada (ótimo para testar o painel) |
 | `--stdout` | imprimir o JSON no terminal em vez de enviar |
 | `--no-app` | não detectar o aplicativo em foco |
+| `--layout ansi` | teclado americano (padrão: `abnt2`) |
 
 **Importante:** feche o *Monitor Serial* da Arduino IDE antes de rodar o agente, porque só um programa pode usar a porta por vez.
 
@@ -95,6 +112,7 @@ No modo `--demo`, os dados ficam em um arquivo separado (`demo_state.json`) para
 - **Sessão / Tempo:** contados desde que o agente foi iniciado.
 - **Total / Top teclas:** histórico acumulado, salvo em disco a cada 30 s e ao sair.
 - Teclas seguradas contam **uma vez**, porque o auto-repeat do sistema é ignorado.
+- **Mapa de calor:** usa o histórico total. A intensidade é `255 × √(contagem / máximo)`; com a raiz quadrada, teclas pouco usadas continuam visíveis ao lado do W/A/S/D.
 
 ## Protocolo serial
 
@@ -115,11 +133,29 @@ No modo `--demo`, os dados ficam em um arquivo separado (`demo_state.json`) para
 | `app` | processo em foco (até 39 caracteres) |
 | `top` | até 8 pares `[tecla, contagem]`, em ordem decrescente |
 
+A cada 2 s, o agente envia também uma linha com o mapa de calor, com intensidades de 1 a 255 por tecla:
+
+```json
+{"heat":{"W":255,"A":204,"SPACE":195,"CCED":14},"hmax":5123}
+```
+
+Nomes de tecla: letras e dígitos (`A`, `7`), pontuação pela tecla física sem Shift (`-`, `;`, `/`…),
+especiais (`SPACE`, `ENTER`, `BKSP`, `SHIFT`, `RSHIFT`, `CTRL`, `ALTGR`, `F1`…) e, no ABNT2, `CCED` (Ç) e `ACUTE` (´).
+A lista completa está em `keyboard_layout.h`; o teste `test_agent_names_exist_in_firmware_layout` garante que o agente e o firmware usam os mesmos nomes.
+
 Se o painel ficar 3 s sem receber dados, ele mostra a conexão como perdida.
 
-## Próximos passos (v2)
+## Testes
 
-- Tela de **mapa de calor** do teclado (layout ABNT2/ANSI)
+```bash
+cd projects/keystats-panel/agent
+python -m unittest test_keystats_agent.py
+```
+
+## Próximos passos
+
+- ~~Tela de **mapa de calor** do teclado (layout ABNT2/ANSI)~~ ✅ v2
+- Alternar o mapa de calor entre **sessão** e **histórico** com um toque longo
 - Interface com **LVGL** e animações
 - Estatísticas **por jogo**
 - Conexão por **Wi-Fi** (WebSocket), sem cabo

@@ -11,6 +11,7 @@ Uso:
     python keystats_agent.py --port COM5     # porta especifica
     python keystats_agent.py --demo          # dados simulados (sem capturar teclado)
     python keystats_agent.py --stdout        # imprime o JSON em vez de enviar
+    python keystats_agent.py --layout ansi   # teclado US (padrao: abnt2)
 """
 
 import argparse
@@ -35,6 +36,7 @@ except ImportError:  # pragma: no cover
 KPM_WINDOW_S = 10.0     # janela movel do KPM (curta = medidor mais "vivo")
 SEND_INTERVAL_S = 0.2   # 5 atualizacoes por segundo
 SAVE_INTERVAL_S = 30.0
+HEAT_INTERVAL_S = 2.0   # mapa de calor muda devagar; manda com menos frequencia
 TOP_N = 8
 BAUD = 115200
 
@@ -64,8 +66,41 @@ SPECIAL_NAMES = {
 }
 
 
-def key_name(key):
-    """Converte um evento do pynput em um nome curto e estavel (max. 8 chars)."""
+# Os nomes abaixo precisam bater com firmware/keystats_cyd/keyboard_layout.h.
+# Caracteres com Shift sao convertidos para a tecla fisica (ex.: "!" -> "1"),
+# assim cada tecla do mapa de calor acumula todas as suas variacoes.
+_SHIFTED_COMMON = {
+    "!": "1", "@": "2", "#": "3", "$": "4", "%": "5", "&": "7", "*": "8",
+    "(": "9", ")": "0", "_": "-", "+": "=", "<": ",", ">": ".", "{": "[",
+    "}": "]", "|": "\\",
+}
+SHIFTED = {
+    # ABNT2: ' " | ´ ` | ~ ^ | ; : | / ? | ç Ç | 6 ¨
+    "abnt2": {**_SHIFTED_COMMON, '"': "'", ":": ";", "?": "/", "^": "~",
+              "\u02dc": "~", "\u00b4": "ACUTE", "`": "ACUTE", "\u00a8": "6",
+              "\u00e7": "CCED", "\u00c7": "CCED",
+              # acentos "mortos" chegam como caracteres combinantes em alguns sistemas
+              "\u0301": "ACUTE", "\u0300": "ACUTE", "\u0303": "~", "\u0302": "~", "\u0308": "6"},
+    # ANSI (US): ` ~ | ' " | ; : | / ?
+    "ansi": {**_SHIFTED_COMMON, "~": "`", '"': "'", ":": ";", "?": "/", "^": "6"},
+}
+# Windows: virtual-key codes das teclas de pontuacao (independem de Shift e acentos)
+WIN_OEM_VK = {
+    "abnt2": {0xBA: "CCED", 0xBB: "=", 0xBC: ",", 0xBD: "-", 0xBE: ".", 0xBF: ";",
+              0xC0: "'", 0xC1: "/", 0xDB: "ACUTE", 0xDC: "]", 0xDD: "[", 0xDE: "~",
+              0xE2: "\\"},
+    "ansi": {0xBA: ";", 0xBB: "=", 0xBC: ",", 0xBD: "-", 0xBE: ".", 0xBF: "/",
+             0xC0: "`", 0xDB: "[", 0xDC: "\\", 0xDD: "]", 0xDE: "'"},
+}
+# Linux/X11: keysyms das teclas mortas
+X11_DEAD = {
+    "abnt2": {0xFE51: "ACUTE", 0xFE50: "ACUTE", 0xFE53: "~", 0xFE52: "~", 0xFE57: "6"},
+    "ansi": {},
+}
+
+
+def key_name(key, layout="abnt2"):
+    """Converte um evento do pynput em um nome curto e estavel (ASCII, max. 8 chars)."""
     name = getattr(key, "name", None)
     if name:  # tecla especial (pynput.keyboard.Key)
         return SPECIAL_NAMES.get(name, name.upper()[:8])
@@ -79,11 +114,21 @@ def key_name(key):
             return chr(vk)
         if 0x60 <= vk <= 0x69:
             return f"NUM{vk - 0x60}"
+        if vk in WIN_OEM_VK[layout]:
+            return WIN_OEM_VK[layout][vk]
+
+    if vk is not None and vk in X11_DEAD[layout]:
+        return X11_DEAD[layout][vk]
 
     if char:
         if ord(char) < 32:          # Ctrl+letra gera caracteres de controle
             return chr(ord(char) + 64)
-        return char.upper()
+        if char in SHIFTED[layout]:
+            return SHIFTED[layout][char]
+        up = char.upper()
+        if up.isascii():
+            return up
+        return f"U{ord(char):04X}"  # outros caracteres: nome ASCII estavel
     if vk is not None:
         return f"VK{vk}"
     return "?"
@@ -156,6 +201,17 @@ class KeyStats:
                 "top": top,
             }
 
+    def heat_snapshot(self) -> dict:
+        """Intensidade 1..255 por tecla (escala raiz quadrada, para teclas pouco
+        usadas continuarem visiveis ao lado de W/A/S/D)."""
+        with self.lock:
+            items = [(k, v) for k, v in self.counts.most_common(120) if v > 0]
+        if not items:
+            return {"heat": {}, "hmax": 0}
+        hmax = items[0][1]
+        heat = {k: max(1, round(255 * (v / hmax) ** 0.5)) for k, v in items}
+        return {"heat": heat, "hmax": hmax}
+
 
 # --------------------------------------------------------------------------- app ativo
 def active_app() -> str:
@@ -207,15 +263,15 @@ class AppWatcher(threading.Thread):
 
 
 # --------------------------------------------------------------------------- fontes de eventos
-def start_keyboard_capture(stats: KeyStats):
+def start_keyboard_capture(stats: KeyStats, layout: str):
     try:
         from pynput import keyboard
     except ImportError:
         sys.exit("Instale as dependencias: pip install -r requirements.txt")
 
     listener = keyboard.Listener(
-        on_press=lambda k: stats.press(key_name(k)),
-        on_release=lambda k: stats.release(key_name(k)),
+        on_press=lambda k: stats.press(key_name(k, layout)),
+        on_release=lambda k: stats.release(key_name(k, layout)),
     )
     listener.daemon = True
     listener.start()
@@ -225,7 +281,8 @@ def start_keyboard_capture(stats: KeyStats):
 def start_demo(stats: KeyStats):
     """Gera digitacao simulada em rajadas, util para testar o painel."""
     keys = ["W"] * 30 + ["A"] * 18 + ["S"] * 14 + ["D"] * 18 + \
-           ["SPACE"] * 10 + ["SHIFT"] * 8 + ["E", "R", "Q", "F", "1", "2", "3", "TAB", "CTRL"] * 2
+           ["SPACE"] * 10 + ["SHIFT"] * 8 + ["E", "R", "Q", "F", "1", "2", "3", "TAB", "CTRL"] * 2 + \
+           list("GZXCVBTY45") + ["ESC", "F1", "ENTER", "CCED", "M", "I", "O", "P", "K", "L"]
 
     def run():
         while True:
@@ -271,6 +328,8 @@ def main():
     ap.add_argument("--stdout", action="store_true", help="imprime o JSON em vez de enviar pela serial")
     ap.add_argument("--state", type=Path, default=DEFAULT_STATE, help="arquivo de estado (contagens)")
     ap.add_argument("--no-app", action="store_true", help="nao detectar o aplicativo ativo")
+    ap.add_argument("--layout", choices=sorted(SHIFTED), default="abnt2",
+                    help="layout fisico do teclado (padrao: abnt2)")
     args = ap.parse_args()
 
     if not args.stdout and serial is None:
@@ -284,7 +343,7 @@ def main():
         start_demo(stats)
         print("Modo demo: gerando digitacao simulada.")
     else:
-        start_keyboard_capture(stats)
+        start_keyboard_capture(stats, args.layout)
         print("Capturando teclado (apenas contagens). Ctrl+C para sair.")
 
     watcher = None
@@ -295,11 +354,16 @@ def main():
     ser = None
     last_save = time.monotonic()
     last_try = 0.0
+    last_heat = 0.0
 
     try:
         while True:
             msg = stats.snapshot(watcher.current if watcher else "")
             line = json.dumps(msg, separators=(",", ":"), ensure_ascii=True) + "\n"
+            if time.monotonic() - last_heat >= HEAT_INTERVAL_S:
+                last_heat = time.monotonic()
+                line += json.dumps(stats.heat_snapshot(), separators=(",", ":"),
+                                   ensure_ascii=True) + "\n"
 
             if args.stdout:
                 sys.stdout.write(line)
