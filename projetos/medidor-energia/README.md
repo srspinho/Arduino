@@ -20,6 +20,7 @@ ciclo de faturamento e a projeção da conta.
 | `esphome/medidor-energia.yaml` | Firmware do ESP32 (ESPHome) |
 | `esphome/secrets.example.yaml` | Modelo de senhas. Copie para `secrets.yaml` |
 | `homeassistant/packages/medidor_energia.yaml` | Tarifa, bandeira, ciclo, custo e projeção |
+| `LISTA-DE-COMPRAS.md` | Componentes, links e preços estimados |
 
 ## 1. Como funciona a rede 127/220 V (e por que isso importa)
 
@@ -53,6 +54,8 @@ potência (motores, fontes) introduzem alguns % de erro, que também são
 corrigidos pela calibração.
 
 ## 2. Materiais
+
+Lista com links de compra e preços estimados: [LISTA-DE-COMPRAS.md](LISTA-DE-COMPRAS.md).
 
 | Qtd | Item | Observação |
 |---|---|---|
