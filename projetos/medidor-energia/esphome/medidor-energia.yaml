@@ -1,0 +1,185 @@
+# =============================================================================
+# Medidor de consumo de energia - ESP32 + 2x SCT-013-000 (bifasico 127/220 V)
+# Firmware ESPHome, integrado ao Home Assistant.
+#
+# Ver ../README.md para montagem, ligacao e calibracao.
+# =============================================================================
+
+substitutions:
+  name: medidor-energia
+  friendly_name: Medidor de Energia
+
+  # Tensoes nominais da rede Enel SP (bifasico 127/220 V)
+  tensao_fase: "127.0"   # fase-neutro  (tomadas, iluminacao)
+  tensao_linha: "220.0"  # fase-fase    (chuveiro, ar-condicionado)
+
+  # Ganho teorico do TC: (2000 espiras / R_burden).
+  #   R_burden = 33 ohm -> 2000/33 = 60.6   (disjuntor geral ate 63 A)
+  #   R_burden = 22 ohm -> 2000/22 = 90.9   (disjuntor geral ate 100 A)
+  # Ajuste fino de cada fase na calibracao (ver README).
+  ganho_fase_a: "60.6"
+  ganho_fase_b: "60.6"
+
+  # Fator global para casar a soma com o relogio da Enel (ver README).
+  fator_correcao: "1.0"
+
+  # Abaixo disso a leitura e ruido do ADC e vira zero (em amperes).
+  corrente_minima: "0.15"
+
+esphome:
+  name: ${name}
+  friendly_name: ${friendly_name}
+
+esp32:
+  board: esp32dev
+  framework:
+    type: esp-idf
+
+logger:
+
+api:
+  encryption:
+    key: !secret api_encryption_key
+
+ota:
+  - platform: esphome
+    encryption: {}  # usa a mesma chave da api
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+  ap:
+    ssid: "Medidor Energia Fallback"
+    password: !secret fallback_password
+
+captive_portal:
+
+# Evita desgastar a flash: o acumulado e gravado a cada 10 min.
+# Numa queda de energia perde-se no maximo esse intervalo de medicao.
+preferences:
+  flash_write_interval: 10min
+
+time:
+  - platform: homeassistant
+    id: hora
+
+sensor:
+  # ---------------------------------------------------------------------------
+  # Entradas analogicas (somente ADC1: GPIO32-39; o ADC2 nao funciona com Wi-Fi)
+  # ---------------------------------------------------------------------------
+  - platform: adc
+    pin: GPIO34
+    id: adc_fase_a
+    attenuation: 12db
+    update_interval: never
+    internal: true
+
+  - platform: adc
+    pin: GPIO35
+    id: adc_fase_b
+    attenuation: 12db
+    update_interval: never
+    internal: true
+
+  # ---------------------------------------------------------------------------
+  # Corrente RMS em cada fase
+  # ---------------------------------------------------------------------------
+  - platform: ct_clamp
+    sensor: adc_fase_a
+    id: corrente_a
+    name: "Corrente Fase A"
+    sample_duration: 200ms
+    update_interval: 5s
+    accuracy_decimals: 2
+    filters:
+      - multiply: ${ganho_fase_a}
+      - lambda: |-
+          return x < ${corrente_minima} ? 0.0f : x;
+
+  - platform: ct_clamp
+    sensor: adc_fase_b
+    id: corrente_b
+    name: "Corrente Fase B"
+    sample_duration: 200ms
+    update_interval: 5s
+    accuracy_decimals: 2
+    filters:
+      - multiply: ${ganho_fase_b}
+      - lambda: |-
+          return x < ${corrente_minima} ? 0.0f : x;
+
+  # ---------------------------------------------------------------------------
+  # Potencia estimada (opcao A: sem medir tensao)
+  #
+  # A parte da corrente comum as duas fases, min(Ia, Ib), e tratada como carga
+  # 220 V (chuveiro, ar). O que sobra em cada fase e tratado como carga 127 V.
+  #
+  # Na rede 127/220 V as fases estao defasadas de 120 graus, entao uma carga
+  # 220 V NAO consome 127*I + 127*I = 254*I, e sim 220*I. Somar as fases
+  # ingenuamente superestimaria o chuveiro em ~15%.
+  # ---------------------------------------------------------------------------
+  - platform: template
+    id: potencia
+    name: "Potência"
+    unit_of_measurement: W
+    device_class: power
+    state_class: measurement
+    accuracy_decimals: 0
+    update_interval: 5s
+    lambda: |-
+      float ia = id(corrente_a).state;
+      float ib = id(corrente_b).state;
+      if (std::isnan(ia)) ia = 0.0f;
+      if (std::isnan(ib)) ib = 0.0f;
+      const float vf = ${tensao_fase};
+      const float vl = ${tensao_linha};
+      const float i_220 = std::min(ia, ib);
+      const float p = vl * i_220 + vf * (ia - i_220) + vf * (ib - i_220);
+      return p * ${fator_correcao};
+
+  # ---------------------------------------------------------------------------
+  # Energia acumulada (kWh) - fonte para o Home Assistant / painel de Energia.
+  # Sobrevive a reinicios (restore: true).
+  # ---------------------------------------------------------------------------
+  - platform: integration
+    id: energia_total
+    name: "Energia Total"
+    sensor: potencia
+    time_unit: h
+    restore: true
+    unit_of_measurement: kWh
+    device_class: energy
+    state_class: total_increasing
+    accuracy_decimals: 3
+    filters:
+      - multiply: 0.001
+
+  - platform: total_daily_energy
+    name: "Energia Hoje"
+    power_id: potencia
+    restore: true
+    unit_of_measurement: kWh
+    device_class: energy
+    state_class: total_increasing
+    accuracy_decimals: 3
+    filters:
+      - multiply: 0.001
+
+  # Diagnostico
+  - platform: wifi_signal
+    name: "Sinal Wi-Fi"
+    update_interval: 60s
+    entity_category: diagnostic
+
+  - platform: uptime
+    name: "Tempo ligado"
+    entity_category: diagnostic
+
+binary_sensor:
+  - platform: status
+    name: "Status"
+
+button:
+  - platform: restart
+    name: "Reiniciar"
+    entity_category: config

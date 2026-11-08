@@ -1,0 +1,138 @@
+# =============================================================================
+# Home Assistant - custo de energia (Enel SP, bifasico)
+#
+# Instalar: copie para <config>/packages/medidor_energia.yaml e habilite
+# packages no configuration.yaml:
+#
+#   homeassistant:
+#     packages: !include_dir_named packages
+#
+# Confira o entity_id do sensor do ESPHome (Configuracoes > Entidades).
+# Com friendly_name "Medidor de Energia" ele costuma ser:
+#   sensor.medidor_de_energia_energia_total
+# =============================================================================
+
+input_number:
+  # Tarifa efetiva = (valor da conta - CIP - bandeira) / kWh faturados.
+  # Ja inclui TE + TUSD + ICMS + PIS/COFINS. Atualize quando a Enel reajustar.
+  energia_tarifa:
+    name: "Energia - Tarifa efetiva"
+    unit_of_measurement: "R$/kWh"
+    min: 0
+    max: 3
+    step: 0.0001
+    mode: box
+    icon: mdi:cash
+
+  # Fator para levar o adicional de bandeira (publicado SEM impostos) ao valor
+  # cobrado. ~1/(1 - ICMS - PIS - COFINS). Com ICMS 18% e PIS/COFINS ~6%: ~1.32
+  energia_fator_impostos:
+    name: "Energia - Fator de impostos"
+    min: 1
+    max: 2
+    step: 0.01
+    mode: box
+    icon: mdi:percent
+
+  # Contribuicao de Iluminacao Publica (CIP/COSIP) + outros valores fixos.
+  energia_taxa_fixa:
+    name: "Energia - Taxas fixas (CIP)"
+    unit_of_measurement: "R$"
+    min: 0
+    max: 200
+    step: 0.01
+    mode: box
+    icon: mdi:lightbulb-on
+
+  # Custo de disponibilidade: bifasico paga no minimo 50 kWh.
+  energia_minimo_kwh:
+    name: "Energia - Consumo minimo faturado"
+    unit_of_measurement: "kWh"
+    min: 0
+    max: 100
+    step: 1
+    mode: box
+    icon: mdi:gauge-low
+
+input_select:
+  energia_bandeira:
+    name: "Energia - Bandeira tarifaria"
+    options:
+      - Verde
+      - Amarela
+      - Vermelha 1
+      - Vermelha 2
+    icon: mdi:flag
+
+# Ciclo de faturamento: zera no dia da leitura da Enel (veja na conta).
+# Ajuste o dia (aqui, dia 15 a meia-noite) no padrao cron "min hora dia mes dia_semana".
+utility_meter:
+  energia_ciclo:
+    name: "Energia - Consumo do ciclo"
+    source: sensor.medidor_de_energia_energia_total
+    cron: "0 0 15 * *"
+
+template:
+  - sensor:
+      # Preco do kWh agora (tarifa + bandeira). Use este sensor como
+      # "entidade com o preco atual" no painel Energia do Home Assistant.
+      - name: "Energia - Preço do kWh"
+        unique_id: energia_preco_kwh
+        unit_of_measurement: "BRL/kWh"
+        icon: mdi:cash-clock
+        state: >
+          {# Adicional em R$/kWh (sem impostos). Valores ANEEL 2025 - confira em aneel.gov.br #}
+          {% set adicional = {
+               'Verde': 0.0,
+               'Amarela': 0.01885,
+               'Vermelha 1': 0.04463,
+               'Vermelha 2': 0.07877 } %}
+          {% set b = adicional.get(states('input_select.energia_bandeira'), 0.0) %}
+          {% set f = states('input_number.energia_fator_impostos') | float(1) %}
+          {% set t = states('input_number.energia_tarifa') | float(0) %}
+          {{ (t + b * f) | round(4) }}
+
+      - name: "Energia - Dias no ciclo"
+        unique_id: energia_dias_ciclo
+        unit_of_measurement: "d"
+        icon: mdi:calendar-range
+        state: >
+          {% set inicio = state_attr('sensor.energia_consumo_do_ciclo', 'last_reset') %}
+          {% if inicio %}
+            {{ ((now() - as_datetime(inicio)).total_seconds() / 86400) | round(1) }}
+          {% else %}
+            0
+          {% endif %}
+
+      - name: "Energia - Custo do ciclo"
+        unique_id: energia_custo_ciclo
+        unit_of_measurement: "R$"
+        device_class: monetary
+        icon: mdi:cash-register
+        state: >
+          {% set kwh = states('sensor.energia_consumo_do_ciclo') | float(0) %}
+          {% set minimo = states('input_number.energia_minimo_kwh') | float(0) %}
+          {% set preco = states('sensor.energia_preco_do_kwh') | float(0) %}
+          {% set fixo = states('input_number.energia_taxa_fixa') | float(0) %}
+          {{ ([kwh, minimo] | max * preco + fixo) | round(2) }}
+
+      - name: "Energia - Projeção do ciclo"
+        unique_id: energia_projecao_kwh
+        unit_of_measurement: "kWh"
+        icon: mdi:chart-line
+        state: >
+          {% set kwh = states('sensor.energia_consumo_do_ciclo') | float(0) %}
+          {% set dias = states('sensor.energia_dias_no_ciclo') | float(0) %}
+          {{ (kwh / dias * 30) | round(1) if dias >= 1 else kwh | round(1) }}
+
+      - name: "Energia - Projeção da conta"
+        unique_id: energia_projecao_conta
+        unit_of_measurement: "R$"
+        device_class: monetary
+        icon: mdi:cash-fast
+        state: >
+          {% set kwh = states('sensor.energia_projecao_do_ciclo') | float(0) %}
+          {% set minimo = states('input_number.energia_minimo_kwh') | float(0) %}
+          {% set preco = states('sensor.energia_preco_do_kwh') | float(0) %}
+          {% set fixo = states('input_number.energia_taxa_fixa') | float(0) %}
+          {{ ([kwh, minimo] | max * preco + fixo) | round(2) }}
