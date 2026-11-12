@@ -91,6 +91,9 @@ static const uint8_t KEY_PINS[12] = {
 // Desliga os LEDs e a tela (apaga a luz de fundo do LCD) apos X ms sem uso (0 = nunca)
 #define SLEEP_AFTER_MS (10UL * 60UL * 1000UL)
 
+// Mensagens no Monitor Serial (115200) para diagnostico. 0 = desliga
+#define DEBUG_SERIAL 1
+
 // ---------------------------------------------------------------------
 //  CAMADAS
 //  Gire o encoder COM O BOTAO PRESSIONADO para trocar de camada.

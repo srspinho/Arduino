@@ -18,6 +18,12 @@ Adafruit_NeoPixel leds(LED_COUNT, LED_PIN, NEO_GRB + NEO_KHZ800);
 
 #include "display.h"
 
+#if DEBUG_SERIAL
+#define LOG(...) Serial.printf(__VA_ARGS__)
+#else
+#define LOG(...)
+#endif
+
 // ---------------------------------------------------------------------
 //  Estado
 // ---------------------------------------------------------------------
@@ -95,6 +101,7 @@ int updateButton(Button &b, uint32_t now) {
 // ---------------------------------------------------------------------
 void setLayer(int layer) {
   currentLayer = (uint8_t)((layer % NUM_LAYERS + NUM_LAYERS) % NUM_LAYERS);
+  LOG("Camada %u: %s\n", currentLayer + 1, LAYERS[currentLayer].name);
   ledsDirty = true;
   if (!asleep) displayLayer(currentLayer);
 }
@@ -172,6 +179,12 @@ void wake(uint32_t now) {
 //  setup / loop
 // ---------------------------------------------------------------------
 void setup() {
+#if DEBUG_SERIAL
+  Serial.begin(115200);
+  uint32_t t0 = millis();
+  while (!Serial && millis() - t0 < 2000) delay(10);   // da tempo de abrir o Monitor Serial
+#endif
+  LOG("\n=== MacroPad iniciando ===\n");
   for (uint8_t i = 0; i < 12; i++) {
     initButton(keys[i], KEY_PINS[i]);
     activeAction[i] = nullptr;
@@ -193,7 +206,10 @@ void setup() {
   leds.show();
 #endif
 
+  LOG("Teclado USB iniciado\n");
+  LOG("Iniciando tela (tipo %d)...\n", DISPLAY_TYPE);
   displayBegin();
+  LOG("Tela iniciada\n");
   setLayer(0);
   displayStatus("Pronto!");
   lastActivity = millis();
@@ -208,6 +224,7 @@ void loop() {
     if (ev == 1) {
       wake(now);
       activeAction[i] = &LAYERS[currentLayer].keys[i];
+      LOG("K%u apertada -> %s\n", i + 1, activeAction[i]->label);
       runAction(*activeAction[i], true);
       displayKey(currentLayer, i, true);
       ledsDirty = true;
