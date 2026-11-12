@@ -235,10 +235,10 @@ Tamanho: **92 x 103 x 22 mm**. Camada de 0.2 mm em PLA ou PETG funciona bem.
 - `sw_cut = 14.1` se os switches entrarem muito justos
 - `post_hole = 4.2` para usar insertos térmicos M3
 
-> 📏 **Meça o seu LCD antes de imprimir o plate!** Os módulos de 1.47" variam
-> de fabricante para fabricante. Os valores padrão são 44.5 x 22 mm de placa e
-> área visível de 32.4 x 17.4 mm. Ajuste `lcd_pcb_w`, `lcd_pcb_h` e, se a área
-> visível não estiver centralizada na plaquinha, `lcd_win_dx`. As 4 cantoneiras
+> 📏 Os valores padrão são os do **GMT147SPI**: placa de 44.5 x 22 mm e área
+> visível de 35 x 19.5 mm. Se usar outro módulo de 1.47", meça e ajuste
+> `lcd_pcb_w`, `lcd_pcb_h`, `lcd_win_w` e `lcd_win_h`. Se a área visível não
+> estiver centralizada na plaquinha, ajuste também `lcd_win_dx`. As 4 cantoneiras
 > embaixo do plate só seguram os cantos, então os pinos podem sair por qualquer lado.
 
 ### Montagem

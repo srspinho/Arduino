@@ -17,10 +17,10 @@ board = "zero";       // [zero, pico2]  Waveshare RP2350-Zero ou Raspberry Pi Pi
 screen = "lcd147";    // [lcd147, oled091, oled096]  LCD 1.47" ST7789 (GMT147SPI), OLED 0.91" ou 0.96"
 
 /* [LCD 1.47" - MECA O SEU MODULO E AJUSTE!] */
-lcd_pcb_w   = 44.5;   // comprimento da plaquinha (lado maior)
+lcd_pcb_w   = 44.5;   // comprimento da plaquinha (lado maior) - GMT147SPI
 lcd_pcb_h   = 22.0;   // largura da plaquinha (lado menor)
-lcd_win_w   = 32.6;   // area visivel (172x320 = 32.35 x 17.39 mm)
-lcd_win_h   = 17.6;
+lcd_win_w   = 35.0;   // area visivel medida no GMT147SPI
+lcd_win_h   = 19.5;
 lcd_win_dx  = 0;      // deslocamento da area visivel em relacao ao centro da placa
                       // (positivo = para a direita, em direcao ao encoder)
 
