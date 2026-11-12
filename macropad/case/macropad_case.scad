@@ -14,7 +14,15 @@
 
 part  = "all";        // [all, bottom, plate, knob]
 board = "zero";       // [zero, pico2]  Waveshare RP2350-Zero ou Raspberry Pi Pico 2
-oled  = "091";        // [091, 096]     OLED 0.91" 128x32 ou 0.96" 128x64
+screen = "lcd147";    // [lcd147, oled091, oled096]  LCD 1.47" ST7789 (GMT147SPI), OLED 0.91" ou 0.96"
+
+/* [LCD 1.47" - MECA O SEU MODULO E AJUSTE!] */
+lcd_pcb_w   = 44.5;   // comprimento da plaquinha (lado maior)
+lcd_pcb_h   = 22.0;   // largura da plaquinha (lado menor)
+lcd_win_w   = 32.6;   // area visivel (172x320 = 32.35 x 17.39 mm)
+lcd_win_h   = 17.6;
+lcd_win_dx  = 0;      // deslocamento da area visivel em relacao ao centro da placa
+                      // (positivo = para a direita, em direcao ao encoder)
 
 /* [Teclas] */
 pitch   = 19.05;      // espacamento padrao MX
@@ -24,7 +32,7 @@ sw_cut  = 14.0;       // furo do switch MX (14.0 = justo; 14.1 se ficar apertado
 
 /* [Caixa] */
 edge     = 8;         // borda entre a grade de teclas e a lateral externa
-strip    = 22;        // faixa de tras para OLED + encoder
+strip    = screen == "lcd147" ? 30 : 22;   // faixa de tras para a tela + encoder
 corner_r = 4;
 wall     = 2.4;
 floor_t  = 2.4;
@@ -48,15 +56,17 @@ H = floor_t + inner_h;
 
 strip_y = edge + rows * pitch + strip / 2;            // centro da faixa
 enc_pos  = [edge + (cols - 0.5) * pitch, strip_y];      // encoder em cima da coluna 4
-oled_pos = [edge + 1.5 * pitch, strip_y];               // OLED centralizado nas colunas 1-3
+scr_pos  = [edge + 1.5 * pitch, strip_y];               // tela centralizada nas colunas 1-3
 
-// OLED: [largura PCB, altura PCB, largura janela, altura janela, desloc. x da janela]
-oled_dims = oled == "096" ? [27.5, 27.5, 24, 13, 0] : [38.5, 12.5, 24, 7, -2];
+// Tela: [largura PCB, altura PCB, largura janela, altura janela, desloc. x da janela]
+scr_dims = screen == "lcd147"  ? [lcd_pcb_w, lcd_pcb_h, lcd_win_w, lcd_win_h, lcd_win_dx]
+         : screen == "oled096" ? [27.5, 27.5, 24, 13, 0]
+         :                       [38.5, 12.5, 24, 7, -2];
 
 // Placa: [largura, comprimento, altura do centro do USB acima da placa, largura do furo USB, altura do furo USB]
 board_dims = board == "pico2" ? [21, 51, 1.3, 11, 7] : [18, 23.5, 1.6, 13, 7.5];
 board_ledge = 1.5;      // altura dos apoios da placa
-board_x = oled_pos[0];  // placa embaixo do OLED, USB saindo por tras
+board_x = scr_pos[0];   // placa embaixo da tela, USB saindo por tras
 
 post_pos = [
   [wall + post_d / 2, wall + post_d / 2],
@@ -109,7 +119,7 @@ module bottom() {
 
 // -------------------------------- plate ------------------------------
 module plate() {
-  ow = oled_dims[0]; od = oled_dims[1];
+  ow = scr_dims[0]; od = scr_dims[1];
   difference() {
     union() {
       rounded_rect(W, D, plate_t, corner_r);
@@ -120,22 +130,26 @@ module plate() {
           rounded_rect(W - 2 * (wall + fit + 1.6), D - 2 * (wall + fit + 1.6), lip_h + 2, 1);
         for (p = post_pos) translate([p[0], p[1], -1]) cylinder(d = post_d + 1, h = lip_h + 2);
       }
-      // moldura para segurar o OLED (fixe com cola quente ou fita dupla face)
-      translate([oled_pos[0] - ow / 2 - 1.2, oled_pos[1] - od / 2 - 1.2, -2])
-        difference() {
-          cube([ow + 2.4, od + 2.4, 2]);
-          translate([1.2, 1.2, -1]) cube([ow, od, 4]);
-        }
+      // 4 cantoneiras para posicionar a tela (fixe com cola quente ou fita dupla face).
+      // So os cantos: os lados ficam livres para os pinos/fios, de qualquer lado.
+      translate([scr_pos[0], scr_pos[1], -2.5])
+        for (sx = [-1, 1], sy = [-1, 1])
+          translate([sx * (ow / 2 + 0.3), sy * (od / 2 + 0.3), 0])
+            mirror([sx < 0 ? 1 : 0, 0, 0]) mirror([0, sy < 0 ? 1 : 0, 0])
+              difference() {
+                translate([-5, -5, 0]) cube([6.2, 6.2, 2.5]);
+                translate([-6, -6, -1]) cube([6, 6, 5]);
+              }
     }
     // switches
     key_positions() translate([-sw_cut / 2, -sw_cut / 2, -5]) cube([sw_cut, sw_cut, 10]);
     // encoder
     translate([enc_pos[0], enc_pos[1], -5]) cylinder(d = enc_hole, h = 10);
-    // janela do OLED (chanfrada para nao fazer sombra)
-    translate([oled_pos[0] + oled_dims[4], oled_pos[1], -0.01])
+    // janela da tela (chanfrada para nao fazer sombra)
+    translate([scr_pos[0] + scr_dims[4], scr_pos[1], -0.01])
       hull() {
-        cube([oled_dims[2], oled_dims[3], 0.01], center = true);
-        translate([0, 0, plate_t]) cube([oled_dims[2] + 2, oled_dims[3] + 2, 0.02], center = true);
+        cube([scr_dims[2], scr_dims[3], 0.01], center = true);
+        translate([0, 0, plate_t]) cube([scr_dims[2] + 2, scr_dims[3] + 2, 0.02], center = true);
       }
     // parafusos
     for (p = post_pos) translate([p[0], p[1], -5]) cylinder(d = screw_hole, h = 10);

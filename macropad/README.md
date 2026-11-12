@@ -1,14 +1,19 @@
 # MacroPad 4x3 + encoder (RP2350, Arduino IDE)
 
-Macropad USB com **12 teclas mecânicas**, **encoder rotativo com clique**, **tela OLED**
-e **LEDs RGB** (opcionais). O PC reconhece como um teclado comum, sem driver nem
+Macropad USB com **12 teclas mecânicas**, **encoder rotativo com clique**, **LCD colorido de 1.47"**
+que mostra o que cada tecla faz, e **LEDs RGB** (opcionais). O PC reconhece como um teclado comum, sem driver nem
 programa extra, no Windows, Linux e macOS.
 
 ![Pré-visualização da caixa](case/preview.png)
 
+Telas geradas pelo próprio código do firmware, rodando num LCD simulado
+(camada 1 com a tecla Play/Pause pressionada, camada 2 e camada 3):
+
+<img src="firmware/lcd_telas.png" width="480" alt="Telas do LCD">
+
 ```
  ┌──────────────────────────────────┐
- │   [ OLED  Geral / Volume + ]  (◎)│  ← encoder
+ │   [ LCD  Geral / Volume + ]   (◎)│  ← encoder
  │  ┌────┐ ┌────┐ ┌────┐ ┌────┐     │
  │  │ K1 │ │ K2 │ │ K3 │ │ K4 │     │
  │  └────┘ └────┘ └────┘ └────┘     │
@@ -27,7 +32,7 @@ programa extra, no Windows, Linux e macOS.
 |---|---|
 | `firmware/MacroPad/` | Sketch do Arduino (`MacroPad.ino`). **Toda a personalização fica em `config.h`.** |
 | `case/macropad_case.scad` | Caixa paramétrica em OpenSCAD |
-| `case/stl/` | STLs prontos (versão para RP2350-Zero + OLED 0.91") |
+| `case/stl/` | STLs prontos (versão para RP2350-Zero + LCD 1.47") |
 
 ---
 
@@ -39,7 +44,7 @@ programa extra, no Windows, Linux e macOS.
 | 12 | Switches mecânicos MX (Gateron, Kailh, Outemu…) | Qualquer switch padrão MX |
 | 12 | Keycaps MX 1u | Perfil baixo (DSA/XDA) fica bonito em macropad |
 | 1 | Encoder **EC11** com botão (eixo D de 6 mm, rosca M7) | Com 20 ou 24 cliques por volta |
-| 1 | OLED **SSD1306 I2C 0.91" 128x32** | Também serve o 0.96" 128x64 (veja abaixo) |
+| 1 | LCD **1.47" 172x320 ST7789** (ex.: GMT147SPI) | Também dá para usar um OLED SSD1306 (veja a seção 3) |
 | 12 | LEDs **WS2812B** *(opcional)* | Pedaço de fita 5 V ou módulos avulsos |
 | 1 | Resistor 330 Ω *(se usar LEDs)* | Em série no fio de dados |
 | 4 | Parafusos M3 x 8 mm cabeça panela | Rosqueiam direto no plástico |
@@ -62,14 +67,25 @@ existem na **Pico 2**, então a mesma ligação serve para as duas.
 |---|---|---|
 | K1 … K12 | perna 1 | **GP0 … GP11** (K1=GP0, K2=GP1 … K12=GP11) |
 | K1 … K12 | perna 2 | **GND** (todas juntas, um fio passando por todas) |
-| Encoder | A | **GP14** |
-| Encoder | B | **GP15** |
+| Encoder | A | **GP26** |
+| Encoder | B | **GP27** |
 | Encoder | C (pino do meio, lado de 3 pinos) | **GND** |
-| Encoder | SW (lado de 2 pinos) | **GP26** e o outro pino no **GND** |
-| OLED | VCC / GND | **3V3** / **GND** |
-| OLED | SDA / SCL | **GP12** / **GP13** |
+| Encoder | SW (lado de 2 pinos) | **GP28** e o outro pino no **GND** |
+| LCD | GND | **GND** |
+| LCD | VCC | **3V3** |
+| LCD | SCL (clock do SPI) | **GP14** |
+| LCD | SDA (dado do SPI) | **GP15** |
+| LCD | RES | **3V3** (fixo) |
+| LCD | DC | **GP12** |
+| LCD | CS | **GND** (fixo) |
+| LCD | BL / "EL" (luz de fundo) | **GP13** (brilho por PWM) |
 | LEDs WS2812B | 5V / GND | **5V** / **GND** |
-| LEDs WS2812B | DIN | **GP27**, passando pelo resistor de 330 Ω |
+| LEDs WS2812B | DIN | **GP29**, passando pelo resistor de 330 Ω |
+
+> Os pinos **SCL/SDA do LCD são SPI**, apesar do nome parecido com I2C.
+> **RES** e **CS** ficam fixos para economizar pinos, porque a RP2350-Zero tem só 20
+> pinos nas bordas. Na **Pico 2** sobram pinos: se quiser, ligue RES e CS em GPIOs
+> livres e coloque os números em `LCD_RST`/`LCD_CS` no `config.h`.
 
 ```
       RP2350-Zero (vista de cima, USB para cima)
@@ -77,15 +93,16 @@ existem na **Pico 2**, então a mesma ligação serve para as duas.
           5V  1|             |23 GP0  ── K1
          GND  2|             |22 GP1  ── K2
          3V3  3|             |21 GP2  ── K3
-        GP29  4|             |20 GP3  ── K4
-        GP28  5|             |19 GP4  ── K5
-LEDs ── GP27  6|             |18 GP5  ── K6
-Enc SW─ GP26  7|             |17 GP6  ── K7
-Enc B ─ GP15  8|             |16 GP7  ── K8
-Enc A ─ GP14  9|             |15 GP8  ── K9
+LEDs ── GP29  4|             |20 GP3  ── K4
+Enc SW─ GP28  5|             |19 GP4  ── K5
+Enc B ─ GP27  6|             |18 GP5  ── K6
+Enc A ─ GP26  7|             |17 GP6  ── K7
+LCD SDA GP15  8|             |16 GP7  ── K8
+LCD SCL GP14  9|             |15 GP8  ── K9
                |_____________|
                GP13 GP12 GP11 GP10 GP9
-                SCL  SDA  K12  K11 K10
+                 BL   DC  K12  K11 K10
+                (LCD)(LCD)
 ```
 
 Não precisa de resistor nas teclas nem no encoder: o firmware liga os
@@ -103,7 +120,8 @@ pull-ups internos.
    **"Raspberry Pi Pico/RP2040/RP2350"** (de Earle F. Philhower). Testado com a versão 6.3.2.
 3. **Gerenciador de Bibliotecas**: instale
    - `Adafruit NeoPixel`
-   - `Adafruit SSD1306` (ele pede também a `Adafruit GFX Library` e a `Adafruit BusIO`: aceite)
+   - `Adafruit ST7735 and ST7789 Library` (ele pede também a `Adafruit GFX Library` e a `Adafruit BusIO`: aceite)
+   - `Adafruit SSD1306`: só se for usar OLED
 4. Abra `firmware/MacroPad/MacroPad.ino`.
 5. **Ferramentas → Placa**: `Waveshare RP2350 Zero` (ou `Raspberry Pi Pico 2`).
    **Ferramentas → USB Stack**: deixe em `Pico SDK` (o padrão).
@@ -111,8 +129,23 @@ pull-ups internos.
    A placa aparece como um pendrive. Clique em **Carregar**. Nas próximas vezes o
    Arduino IDE grava direto.
 
-Se você não for usar a tela ou os LEDs, mude `USE_OLED` ou `USE_LEDS` para `0`
-no `config.h`.
+### Tela
+No `config.h`, `DISPLAY_TYPE` escolhe a tela:
+
+| Valor | Tela |
+|---|---|
+| `DISPLAY_LCD` *(padrão)* | LCD colorido 1.47" ST7789. Mostra a camada, as 12 teclas, o encoder e a última ação |
+| `DISPLAY_OLED` | OLED SSD1306 0.91"/0.96" (I2C: SDA=GP12, SCL=GP13) |
+| `DISPLAY_NONE` | Sem tela |
+
+Se o LCD acender mas a imagem estiver estranha:
+- **Cores invertidas** (fundo branco): mude `LCD_INVERT` para `0`.
+- **Imagem de cabeça para baixo**: mude `LCD_ROTATION` para `3`.
+- **Imagem deslocada ou com faixa de lixo na borda**: o seu módulo pode não ser
+  172x320. Me avise o que aparece.
+- **Tela toda preta**: confira o fio do BL (GP13) e se o VCC está em 3V3.
+
+Sem LEDs: `USE_LEDS 0`.
 
 ---
 
@@ -120,10 +153,11 @@ no `config.h`.
 
 | Ação | O que faz |
 |---|---|
-| Apertar uma tecla | Executa a ação da camada atual (a tela mostra o nome) |
+| Apertar uma tecla | Executa a ação da camada atual (a tecla acende na tela) |
 | Girar o encoder | Ação de girar da camada (padrão: **volume**) |
 | Clicar no encoder | Ação de clique da camada (padrão: **mudo**) |
-| **Segurar o encoder e girar** | **Troca de camada** (a cor dos LEDs muda) |
+| **Segurar o encoder e girar** | **Troca de camada** (a cor da tela e dos LEDs muda) |
+| Ficar 10 min sem usar | Apaga a tela e os LEDs. Qualquer tecla acorda |
 
 ### Camadas que já vêm configuradas
 
@@ -136,7 +170,7 @@ no `config.h`.
 
 **2. Navegador** (laranja). Encoder: troca de aba, e o clique abre uma aba nova.
 
-| Nova aba | Fechar aba | Reabrir aba | Recarregar |
+| Nova aba | Fechar aba | Reabrir aba | Atualizar (F5) |
 |---|---|---|---|
 | Voltar | Avançar | Zoom + | Zoom − |
 | Janela anônima | Favoritar | Tela cheia | Zoom 100% |
@@ -167,6 +201,9 @@ NONE,                                           // nada
   `KEY_BRIGHTNESS_INCREMENT`…
 - **Mais camadas:** aumente `NUM_LAYERS` e copie um bloco `{ ... }`.
 - **Cor de cada camada:** os três números depois do nome (R, G, B).
+- **Nome na tela:** o primeiro texto de cada linha. Até ~8 letras cabem grandes;
+  nomes com espaço quebram em 2 linhas ("Tela cheia"); nomes maiores saem com
+  letra menor.
 - **Encoder com o sentido trocado** ou contando 2 passos por clique: ajuste
   `ENC_REVERSE` e `ENC_STEPS_PER_DETENT`.
 
@@ -188,19 +225,28 @@ Arquivos em `case/`. Os STLs prontos estão em `case/stl/`:
 | `macropad_plate.stl` | Já está virado (topo na mesa), sem suporte. **Imprima com 100% de preenchimento** para os clipes dos switches ficarem firmes |
 | `macropad_knob.stl` | Em pé, sem suporte |
 
-Tamanho: **92 x 95 x 22 mm**. Camada de 0.2 mm em PLA ou PETG funciona bem.
+Tamanho: **92 x 103 x 22 mm**. Camada de 0.2 mm em PLA ou PETG funciona bem.
 
 **Mudar as opções** (abra o `.scad` no OpenSCAD e use o *Customizer*, ou edite no topo):
 
 - `board = "pico2"` para a Raspberry Pi Pico 2 (furo micro-USB e berço maior)
-- `oled = "096"` para o OLED 0.96" 128x64 (e no `config.h` coloque `OLED_HEIGHT 64`)
+- `screen = "oled091"` / `"oled096"` para usar OLED em vez do LCD (no `config.h`,
+  `DISPLAY_TYPE DISPLAY_OLED` e `OLED_HEIGHT 32` ou `64`)
 - `sw_cut = 14.1` se os switches entrarem muito justos
 - `post_hole = 4.2` para usar insertos térmicos M3
+
+> 📏 **Meça o seu LCD antes de imprimir o plate!** Os módulos de 1.47" variam
+> de fabricante para fabricante. Os valores padrão são 44.5 x 22 mm de placa e
+> área visível de 32.4 x 17.4 mm. Ajuste `lcd_pcb_w`, `lcd_pcb_h` e, se a área
+> visível não estiver centralizada na plaquinha, `lcd_win_dx`. As 4 cantoneiras
+> embaixo do plate só seguram os cantos, então os pinos podem sair por qualquer lado.
 
 ### Montagem
 1. Encaixe os 12 switches no plate (de cima para baixo, até estalar).
 2. Prenda o encoder com a porca que vem com ele.
-3. Cole o OLED na moldura embaixo do plate (cola quente nas bordas ou fita dupla face).
+3. Encaixe o LCD entre as 4 cantoneiras embaixo do plate, com a tela virada para a
+   janela, e prenda com cola quente nas bordas ou fita dupla face. Tire a película
+   de proteção antes.
 4. Encaixe a placa no berço da caixa, com o USB virado para o furo de trás.
 5. Solde os fios conforme a tabela da seção 2.
 6. **Grave e teste antes de fechar.**

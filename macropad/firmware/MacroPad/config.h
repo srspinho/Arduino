@@ -26,13 +26,13 @@ static const uint8_t KEY_PINS[12] = {
 };
 
 // Encoder EC11 (pino do meio "C" no GND)
-#define ENC_PIN_A   14
-#define ENC_PIN_B   15
-#define ENC_PIN_SW  26   // botao do encoder (outro lado no GND)
+#define ENC_PIN_A   26
+#define ENC_PIN_B   27
+#define ENC_PIN_SW  28   // botao do encoder (outro lado no GND)
 
 // Quantas transicoes o encoder gera por "clique" (detent).
-// EC11 comum = 4. Se cada clique contar 2x, mude para 4; se precisar
-// de 2 cliques para 1 passo, mude para 2.
+// EC11 comum = 4. Se cada clique contar 2 passos, use 8;
+// se precisar de 2 cliques para 1 passo, use 2.
 #define ENC_STEPS_PER_DETENT 4
 // Inverta se o sentido do giro estiver trocado
 #define ENC_REVERSE 0
@@ -43,13 +43,42 @@ static const uint8_t KEY_PINS[12] = {
 //  LED_PER_KEY 0 -> fita/underglow com qualquer quantidade de LEDs:
 //                   a fita toda pisca em branco a cada tecla.
 #define USE_LEDS     1
-#define LED_PIN      27
+#define LED_PIN      29
 #define LED_COUNT    12
 #define LED_PER_KEY  0
 #define LED_BRIGHTNESS 40   // 0-255. Mantenha baixo se alimentar pela USB
 
-// Tela OLED SSD1306 I2C (0.91" 128x32 ou 0.96" 128x64)
-#define USE_OLED     1
+// ---------------------------------------------------------------------
+//  TELA
+//    DISPLAY_LCD   -> LCD colorido 1.47" 172x320 ST7789 (GMT147SPI)
+//    DISPLAY_OLED  -> OLED SSD1306 I2C 0.91"/0.96"
+//    DISPLAY_NONE  -> sem tela
+// ---------------------------------------------------------------------
+#define DISPLAY_NONE 0
+#define DISPLAY_OLED 1
+#define DISPLAY_LCD  2
+#define DISPLAY_TYPE DISPLAY_LCD
+
+// --- LCD ST7789 (SPI1) ---
+//  Pinos do modulo:  GND  VCC  SCL  SDA  RES  DC   CS   BL("EL")
+//  Ligar em:         GND  3V3  GP14 GP15 3V3  GP12 GND  GP13
+//  (SCL/SDA aqui sao o clock e o dado do SPI, nao I2C!)
+//  Na Pico 2 sobram pinos: se quiser, ligue RES e CS em GPIOs e
+//  coloque os numeros abaixo (-1 = ligado fixo em 3V3/GND).
+#define LCD_SCK      14
+#define LCD_MOSI     15
+#define LCD_DC       12
+#define LCD_BL       13     // brilho por PWM
+#define LCD_CS       -1
+#define LCD_RST      -1
+#define LCD_WIDTH    172
+#define LCD_HEIGHT   320
+#define LCD_ROTATION 1      // 1 ou 3 (deitado). Use 3 para girar 180 graus
+#define LCD_SPI_HZ   40000000
+#define LCD_BRIGHTNESS 200  // 0-255
+#define LCD_INVERT   1      // se as cores aparecerem invertidas, mude para 0
+
+// --- OLED SSD1306 (I2C0) ---
 #define OLED_SDA     12
 #define OLED_SCL     13
 #define OLED_ADDR    0x3C
@@ -59,7 +88,7 @@ static const uint8_t KEY_PINS[12] = {
 // Tempo de debounce das teclas (ms)
 #define DEBOUNCE_MS  5
 
-// Desliga os LEDs e a tela apos X ms sem uso (0 = nunca)
+// Desliga os LEDs e a tela (apaga a luz de fundo do LCD) apos X ms sem uso (0 = nunca)
 #define SLEEP_AFTER_MS (10UL * 60UL * 1000UL)
 
 // ---------------------------------------------------------------------
@@ -102,7 +131,7 @@ static const Layer LAYERS[NUM_LAYERS] = {
       MEDIA("Anterior",   KEY_SCAN_PREVIOUS),
       MEDIA("Play/Pause", KEY_PLAY_PAUSE),
       MEDIA("Proxima",    KEY_SCAN_NEXT),
-      MEDIA("Calculad.",  KEY_AL_CALCULATOR),
+      MEDIA("Calcular",   KEY_AL_CALCULATOR),
 
       KEYS("Print",       KEY_LEFT_GUI, KEY_LEFT_SHIFT, 's'),
       KEYS("Desktop",     KEY_LEFT_GUI, 'd'),
@@ -121,7 +150,7 @@ static const Layer LAYERS[NUM_LAYERS] = {
       KEYS("Nova aba",  KEY_LEFT_CTRL, 't'),
       KEYS("Fecha aba", KEY_LEFT_CTRL, 'w'),
       KEYS("Reabrir",   KEY_LEFT_CTRL, KEY_LEFT_SHIFT, 't'),
-      KEYS("Recarregar", KEY_F5),
+      KEYS("Atualizar", KEY_F5),
 
       KEYS("Voltar",    KEY_LEFT_ALT, KEY_LEFT_ARROW),
       KEYS("Avancar",   KEY_LEFT_ALT, KEY_RIGHT_ARROW),
@@ -133,8 +162,8 @@ static const Layer LAYERS[NUM_LAYERS] = {
       KEYS("Tela cheia", KEY_F11),
       KEYS("Zoom 100%", KEY_LEFT_CTRL, KEY_KP_0),
     },
-    KEYS("Aba <", KEY_LEFT_CTRL, KEY_LEFT_SHIFT, KEY_TAB),
-    KEYS("Aba >", KEY_LEFT_CTRL, KEY_TAB),
+    KEYS("Aba ant.", KEY_LEFT_CTRL, KEY_LEFT_SHIFT, KEY_TAB),
+    KEYS("Prox. aba", KEY_LEFT_CTRL, KEY_TAB),
     KEYS("Nova aba", KEY_LEFT_CTRL, 't'),
   },
 

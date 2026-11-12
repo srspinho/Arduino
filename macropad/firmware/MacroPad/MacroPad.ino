@@ -4,7 +4,8 @@
 //  Placa no Arduino IDE: core "Raspberry Pi Pico/RP2040/RP2350"
 //  (Earle Philhower). Ferramentas > USB Stack: "Pico SDK" (padrao).
 //
-//  Bibliotecas: Adafruit NeoPixel, Adafruit SSD1306, Adafruit GFX.
+//  Bibliotecas: Adafruit NeoPixel, Adafruit GFX, Adafruit ST7735 and ST7789
+//  (para o LCD) ou Adafruit SSD1306 (para o OLED).
 //  Toda a configuracao fica em config.h.
 // =====================================================================
 #include <Keyboard.h>
@@ -15,13 +16,7 @@
 Adafruit_NeoPixel leds(LED_COUNT, LED_PIN, NEO_GRB + NEO_KHZ800);
 #endif
 
-#if USE_OLED
-#include <Wire.h>
-#include <Adafruit_GFX.h>
-#include <Adafruit_SSD1306.h>
-Adafruit_SSD1306 oled(OLED_WIDTH, OLED_HEIGHT, &Wire, -1);
-bool oledOk = false;
-#endif
+#include "display.h"
 
 // ---------------------------------------------------------------------
 //  Estado
@@ -38,8 +33,6 @@ static Button encButton;
 static const Action *activeAction[12];   // acao em uso enquanto a tecla esta pressionada
 
 static uint8_t currentLayer = 0;
-static const char *lastLabel = "";
-static bool displayDirty = true;
 static bool ledsDirty = true;
 static bool asleep = false;
 static uint32_t lastActivity = 0;
@@ -102,8 +95,8 @@ int updateButton(Button &b, uint32_t now) {
 // ---------------------------------------------------------------------
 void setLayer(int layer) {
   currentLayer = (uint8_t)((layer % NUM_LAYERS + NUM_LAYERS) % NUM_LAYERS);
-  lastLabel = LAYERS[currentLayer].name;
-  displayDirty = ledsDirty = true;
+  ledsDirty = true;
+  if (!asleep) displayLayer(currentLayer);
 }
 
 void runAction(const Action &a, bool press) {
@@ -128,10 +121,7 @@ void runAction(const Action &a, bool press) {
     case A_NONE:
       return;
   }
-  if (press) {
-    lastLabel = a.label;
-    displayDirty = true;
-  }
+  if (press && !asleep) displayStatus(a.label);
 }
 
 // Pressiona e solta (usado pelo encoder)
@@ -168,35 +158,13 @@ void updateLeds() {
 #endif
 }
 
-void updateDisplay() {
-#if USE_OLED
-  if (!oledOk || !displayDirty) return;
-  displayDirty = false;
-  oled.clearDisplay();
-  if (!asleep) {
-    oled.setTextColor(SSD1306_WHITE);
-    oled.setTextSize(1);
-    oled.setCursor(0, 0);
-    oled.print('[');
-    oled.print(currentLayer + 1);
-    oled.print('/');
-    oled.print(NUM_LAYERS);
-    oled.print("] ");
-    oled.print(LAYERS[currentLayer].name);
-
-    oled.setTextSize(2);
-    oled.setCursor(0, OLED_HEIGHT == 64 ? 28 : 14);
-    oled.print(lastLabel);
-  }
-  oled.display();
-#endif
-}
-
 void wake(uint32_t now) {
   lastActivity = now;
   if (asleep) {
     asleep = false;
-    displayDirty = ledsDirty = true;
+    ledsDirty = true;
+    displaySleep(false);
+    displayLayer(currentLayer);
   }
 }
 
@@ -225,16 +193,9 @@ void setup() {
   leds.show();
 #endif
 
-#if USE_OLED
-  Wire.setSDA(OLED_SDA);
-  Wire.setSCL(OLED_SCL);
-  Wire.begin();
-  Wire.setClock(400000);
-  oledOk = oled.begin(SSD1306_SWITCHCAPVCC, OLED_ADDR);
-#endif
-
+  displayBegin();
   setLayer(0);
-  lastLabel = "Pronto!";
+  displayStatus("Pronto!");
   lastActivity = millis();
 }
 
@@ -248,11 +209,13 @@ void loop() {
       wake(now);
       activeAction[i] = &LAYERS[currentLayer].keys[i];
       runAction(*activeAction[i], true);
+      displayKey(currentLayer, i, true);
       ledsDirty = true;
     } else if (ev == -1) {
       // solta a acao que foi pressionada, mesmo se a camada mudou no meio
       if (activeAction[i]) runAction(*activeAction[i], false);
       activeAction[i] = nullptr;
+      if (!asleep) displayKey(currentLayer, i, false);
       ledsDirty = true;
     }
   }
@@ -283,9 +246,10 @@ void loop() {
   // --- descanso ---
   if (SLEEP_AFTER_MS > 0 && !asleep && (now - lastActivity) > SLEEP_AFTER_MS) {
     asleep = true;
-    displayDirty = ledsDirty = true;
+    ledsDirty = true;
+    displaySleep(true);
   }
 
   updateLeds();
-  updateDisplay();
+  displayTask();
 }
