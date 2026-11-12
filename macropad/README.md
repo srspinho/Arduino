@@ -72,13 +72,13 @@ existem na **Pico 2**, então a mesma ligação serve para as duas.
 | Encoder | C (pino do meio, lado de 3 pinos) | **GND** |
 | Encoder | SW (lado de 2 pinos) | **GP28** e o outro pino no **GND** |
 | LCD | GND | **GND** |
-| LCD | VCC | **3V3** |
+| LCD | VDD | **3V3** (o módulo aceita só 2,8–3,3 V: **não ligue no 5V**) |
 | LCD | SCL (clock do SPI) | **GP14** |
 | LCD | SDA (dado do SPI) | **GP15** |
 | LCD | RES | **3V3** (fixo) |
 | LCD | DC | **GP12** |
 | LCD | CS | **GND** (fixo) |
-| LCD | BL / "EL" (luz de fundo) | **GP13** (brilho por PWM) |
+| LCD | BL (luz de fundo) | **GP13** (brilho por PWM) |
 | LEDs WS2812B | 5V / GND | **5V** / **GND** |
 | LEDs WS2812B | DIN | **GP29**, passando pelo resistor de 330 Ω |
 
@@ -235,18 +235,21 @@ Tamanho: **92 x 103 x 22 mm**. Camada de 0.2 mm em PLA ou PETG funciona bem.
 - `sw_cut = 14.1` se os switches entrarem muito justos
 - `post_hole = 4.2` para usar insertos térmicos M3
 
-> 📏 Os valores padrão são os do **GMT147SPI**: placa de 44.5 x 22 mm e área
-> visível de 35 x 19.5 mm. Se usar outro módulo de 1.47", meça e ajuste
-> `lcd_pcb_w`, `lcd_pcb_h`, `lcd_win_w` e `lcd_win_h`. Se a área visível não
-> estiver centralizada na plaquinha, ajuste também `lcd_win_dx`. As 4 cantoneiras
+> 📏 Os valores padrão vêm da ficha técnica do **GMT147SPI**: placa de
+> 20.96 x 44 mm, vidro de 19.39 x 36.28 mm (fora do centro da placa) e área ativa
+> de 17.39 x 32.35 mm. A janela segue a área ativa com ~0.4 mm de folga. A tampa
+> tem **2 pinos-guia** que entram nos furos de fixação do LCD, então ele sempre
+> fica alinhado com a janela. Se usar outro módulo de 1.47", ajuste os parâmetros
+> `lcd_*` no topo do `.scad`. As 4 cantoneiras
 > embaixo do plate só seguram os cantos, então os pinos podem sair por qualquer lado.
 
 ### Montagem
 1. Encaixe os 12 switches no plate (de cima para baixo, até estalar).
 2. Prenda o encoder com a porca que vem com ele.
-3. Encaixe o LCD entre as 4 cantoneiras embaixo do plate, com a tela virada para a
-   janela, e prenda com cola quente nas bordas ou fita dupla face. Tire a película
-   de proteção antes.
+3. Tire a película de proteção do LCD e encaixe-o embaixo do plate, com a tela
+   virada para a janela, os **pinos para a esquerda** e os **2 furos nos pinos-guia**
+   (lado do encoder). Prenda com uma gota de cola quente na ponta de cada pino-guia
+   e nas bordas.
 4. Encaixe a placa no berço da caixa, com o USB virado para o furo de trás.
 5. Solde os fios conforme a tabela da seção 2.
 6. **Grave e teste antes de fechar.**

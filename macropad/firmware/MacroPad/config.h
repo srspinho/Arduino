@@ -60,7 +60,7 @@ static const uint8_t KEY_PINS[12] = {
 #define DISPLAY_TYPE DISPLAY_LCD
 
 // --- LCD ST7789 (SPI1) ---
-//  Pinos do modulo:  GND  VCC  SCL  SDA  RES  DC   CS   BL("EL")
+//  Pinos do modulo:  GND  VDD  SCL  SDA  RES  DC   CS   BL
 //  Ligar em:         GND  3V3  GP14 GP15 3V3  GP12 GND  GP13
 //  (SCL/SDA aqui sao o clock e o dado do SPI, nao I2C!)
 //  Na Pico 2 sobram pinos: se quiser, ligue RES e CS em GPIOs e
@@ -73,7 +73,7 @@ static const uint8_t KEY_PINS[12] = {
 #define LCD_RST      -1
 #define LCD_WIDTH    172
 #define LCD_HEIGHT   320
-#define LCD_ROTATION 1      // 1 ou 3 (deitado). Use 3 para girar 180 graus
+#define LCD_ROTATION 1      // 1 ou 3 (deitado). Se a imagem sair de cabeca para baixo, use 3
 #define LCD_SPI_HZ   40000000
 #define LCD_BRIGHTNESS 200  // 0-255
 #define LCD_INVERT   1      // se as cores aparecerem invertidas, mude para 0

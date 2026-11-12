@@ -16,13 +16,23 @@ part  = "all";        // [all, bottom, plate, knob]
 board = "zero";       // [zero, pico2]  Waveshare RP2350-Zero ou Raspberry Pi Pico 2
 screen = "lcd147";    // [lcd147, oled091, oled096]  LCD 1.47" ST7789 (GMT147SPI), OLED 0.91" ou 0.96"
 
-/* [LCD 1.47" - MECA O SEU MODULO E AJUSTE!] */
-lcd_pcb_w   = 44.5;   // comprimento da plaquinha (lado maior) - GMT147SPI
-lcd_pcb_h   = 22.0;   // largura da plaquinha (lado menor)
-lcd_win_w   = 35.0;   // area visivel medida no GMT147SPI
-lcd_win_h   = 19.5;
-lcd_win_dx  = 0;      // deslocamento da area visivel em relacao ao centro da placa
-                      // (positivo = para a direita, em direcao ao encoder)
+/* [LCD 1.47" - valores do GMT147SPI (ficha tecnica GoldenMorning)] */
+// O LCD fica deitado com os PINOS PARA A ESQUERDA e os 2 furos de fixacao
+// para a direita (lado do encoder). No firmware: LCD_ROTATION 1.
+lcd_pcb_w   = 44.0;   // comprimento da plaquinha
+lcd_pcb_h   = 21.0;   // largura da plaquinha (20.96)
+lcd_glass_t = 1.56;   // espessura do vidro (a placa fica 1.56 mm abaixo do plate)
+// Janela = area ativa (17.39 x 32.35 mm) + ~0.4 mm de folga em cada lado.
+// O vidro nao e centralizado na placa: fica a 4.4 mm da borda dos furos e
+// a 3.3 mm da borda dos pinos. A area ativa tem ~1 mm de borda do lado dos
+// furos e ~2.9 mm do lado do cabo flat (pinos).
+lcd_win_w   = 33.2;
+lcd_win_h   = 18.2;
+lcd_win_dx  = 0.4;    // centro da area ativa em relacao ao centro da placa (+ = lado dos furos)
+// Furos de fixacao (lado oposto aos pinos): pinos-guia na tampa
+lcd_pegs    = true;
+lcd_hole_x  = 20.05;  // distancia do centro da placa ate os furos, no comprimento
+lcd_hole_y  = 8.3;    // distancia do centro da placa ate cada furo, na largura
 
 /* [Teclas] */
 pitch   = 19.05;      // espacamento padrao MX
@@ -140,6 +150,14 @@ module plate() {
                 translate([-5, -5, 0]) cube([6.2, 6.2, 2.5]);
                 translate([-6, -6, -1]) cube([6, 6, 5]);
               }
+      // pinos-guia nos 2 furos do LCD: um espacador da altura do vidro e um
+      // pino de 1.9 mm que atravessa a placa
+      if (screen == "lcd147" && lcd_pegs)
+        for (sy = [-1, 1])
+          translate([scr_pos[0] + lcd_hole_x, scr_pos[1] + sy * lcd_hole_y, 0]) {
+            translate([0, 0, -lcd_glass_t]) cylinder(d = 3.4, h = lcd_glass_t + 0.01);
+            translate([0, 0, -lcd_glass_t - 2.2]) cylinder(d = 1.9, h = 2.3, $fn = 24);
+          }
     }
     // switches
     key_positions() translate([-sw_cut / 2, -sw_cut / 2, -5]) cube([sw_cut, sw_cut, 10]);
