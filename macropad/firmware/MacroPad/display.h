@@ -222,6 +222,32 @@ static void drawFooter(const Layer &L) {
   tft.drawRGBBitmap(0, SCR_H - FOOT_H, c.getBuffer(), SCR_W, FOOT_H);
 }
 
+// Na RP2350 o SPI liga no modo 0 (clock parado em LOW) e so passa para o
+// modo 3 (clock parado em HIGH) no primeiro comando, DEPOIS do reset que a
+// biblioteca faz. Essa subida do clock conta como 1 bit a mais e, num LCD
+// sem pino CS (GMT130), todos os bytes seguintes chegam deslocados.
+// Solucao: com o SPI ja na frequencia e no modo finais (clock parado e
+// estavel), da um novo reset no LCD e repete a inicializacao.
+static void lcdRealign() {
+  if (LCD_RST < 0) return;
+  tft.startWrite();             // aplica frequencia/modo finais no SPI
+  tft.endWrite();
+  digitalWrite(LCD_RST, LOW);
+  delay(20);
+  digitalWrite(LCD_RST, HIGH);
+  delay(150);
+  uint8_t colmod = 0x55;        // 16 bits por pixel
+  tft.sendCommand(ST77XX_SLPOUT);
+  delay(150);
+  tft.sendCommand(ST77XX_COLMOD, &colmod, 1);
+  delay(10);
+  tft.sendCommand(ST77XX_NORON);
+  delay(10);
+  tft.sendCommand(ST77XX_DISPON);
+  delay(10);
+  // inversao e rotacao sao reenviadas logo depois, em displayBegin()
+}
+
 void displayBegin() {
   pinMode(LCD_BL, OUTPUT);
   setBacklight(0);
@@ -229,6 +255,7 @@ void displayBegin() {
   SPI1.setTX(LCD_MOSI);
   tft.init(LCD_WIDTH, LCD_HEIGHT, LCD_SPI_MODE);
   tft.setSPISpeed(LCD_SPI_HZ);
+  lcdRealign();
   tft.invertDisplay(LCD_INVERT);
   tft.setRotation(LCD_ROTATION);
   tft.fillScreen(C_BG);
@@ -262,6 +289,32 @@ static bool oledOk = false, oledDirty = true, oledSleeping = false;
 static uint8_t oledLayer = 0;
 static const char *oledStatus = "";
 
+// Na RP2350 o SPI liga no modo 0 (clock parado em LOW) e so passa para o
+// modo 3 (clock parado em HIGH) no primeiro comando, DEPOIS do reset que a
+// biblioteca faz. Essa subida do clock conta como 1 bit a mais e, num LCD
+// sem pino CS (GMT130), todos os bytes seguintes chegam deslocados.
+// Solucao: com o SPI ja na frequencia e no modo finais (clock parado e
+// estavel), da um novo reset no LCD e repete a inicializacao.
+static void lcdRealign() {
+  if (LCD_RST < 0) return;
+  tft.startWrite();             // aplica frequencia/modo finais no SPI
+  tft.endWrite();
+  digitalWrite(LCD_RST, LOW);
+  delay(20);
+  digitalWrite(LCD_RST, HIGH);
+  delay(150);
+  uint8_t colmod = 0x55;        // 16 bits por pixel
+  tft.sendCommand(ST77XX_SLPOUT);
+  delay(150);
+  tft.sendCommand(ST77XX_COLMOD, &colmod, 1);
+  delay(10);
+  tft.sendCommand(ST77XX_NORON);
+  delay(10);
+  tft.sendCommand(ST77XX_DISPON);
+  delay(10);
+  // inversao e rotacao sao reenviadas logo depois, em displayBegin()
+}
+
 void displayBegin() {
   Wire.setSDA(OLED_SDA);
   Wire.setSCL(OLED_SCL);
@@ -294,6 +347,32 @@ void displayTask() {
 // ---------------------------------------------------------------------
 //  Sem tela
 // ---------------------------------------------------------------------
+// Na RP2350 o SPI liga no modo 0 (clock parado em LOW) e so passa para o
+// modo 3 (clock parado em HIGH) no primeiro comando, DEPOIS do reset que a
+// biblioteca faz. Essa subida do clock conta como 1 bit a mais e, num LCD
+// sem pino CS (GMT130), todos os bytes seguintes chegam deslocados.
+// Solucao: com o SPI ja na frequencia e no modo finais (clock parado e
+// estavel), da um novo reset no LCD e repete a inicializacao.
+static void lcdRealign() {
+  if (LCD_RST < 0) return;
+  tft.startWrite();             // aplica frequencia/modo finais no SPI
+  tft.endWrite();
+  digitalWrite(LCD_RST, LOW);
+  delay(20);
+  digitalWrite(LCD_RST, HIGH);
+  delay(150);
+  uint8_t colmod = 0x55;        // 16 bits por pixel
+  tft.sendCommand(ST77XX_SLPOUT);
+  delay(150);
+  tft.sendCommand(ST77XX_COLMOD, &colmod, 1);
+  delay(10);
+  tft.sendCommand(ST77XX_NORON);
+  delay(10);
+  tft.sendCommand(ST77XX_DISPON);
+  delay(10);
+  // inversao e rotacao sao reenviadas logo depois, em displayBegin()
+}
+
 void displayBegin() {}
 void displayLayer(uint8_t) {}
 void displayKey(uint8_t, uint8_t, bool) {}

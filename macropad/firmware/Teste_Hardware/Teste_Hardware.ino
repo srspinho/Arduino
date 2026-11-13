@@ -68,6 +68,23 @@ void startAttempt(int a) {
     tft = new Adafruit_ST7789(&SPI1, LCD_CS, LCD_DC, LCD_RST);
     tft->init(LCD_W, LCD_H, a == 0 ? SPI_MODE0 : SPI_MODE3);
     tft->setSPISpeed(4000000);   // devagar de proposito, para tolerar fios longos
+    // realinha: com o clock ja parado no nivel certo, novo reset + inicializacao
+    if (LCD_RST >= 0) {
+      tft->startWrite();
+      tft->endWrite();
+      digitalWrite(LCD_RST, LOW);
+      delay(20);
+      digitalWrite(LCD_RST, HIGH);
+      delay(150);
+      uint8_t colmod = 0x55;
+      tft->sendCommand(ST77XX_SLPOUT);
+      delay(150);
+      tft->sendCommand(ST77XX_COLMOD, &colmod, 1);
+      tft->sendCommand(ST77XX_INVON);
+      tft->sendCommand(ST77XX_NORON);
+      tft->sendCommand(ST77XX_DISPON);
+      delay(10);
+    }
   } else {
     tft = new Adafruit_ST7789(LCD_CS, LCD_DC, LCD_MOSI, LCD_SCK, LCD_RST);
     tft->init(LCD_W, LCD_H);
