@@ -11,6 +11,10 @@
 #include <Keyboard.h>
 #include "config.h"
 
+#if USE_LEDS && DISPLAY_TYPE == DISPLAY_LCD && LED_PIN == LCD_RST
+#error "LED_PIN e LCD_RST estao no mesmo pino. Mude LED_PIN no config.h."
+#endif
+
 #if USE_LEDS
 #include <Adafruit_NeoPixel.h>
 Adafruit_NeoPixel leds(LED_COUNT, LED_PIN, NEO_GRB + NEO_KHZ800);

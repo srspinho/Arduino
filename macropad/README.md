@@ -75,17 +75,19 @@ existem na **Pico 2**, então a mesma ligação serve para as duas.
 | LCD | VDD | **3V3** (o módulo aceita só 2,8–3,3 V: **não ligue no 5V**) |
 | LCD | SCL (clock do SPI) | **GP14** |
 | LCD | SDA (dado do SPI) | **GP15** |
-| LCD | RES | **3V3** (fixo) |
+| LCD | RES | **GP29** (reset do LCD, **não ligue no 3V3**) |
 | LCD | DC | **GP12** |
 | LCD | CS | **GND** (fixo) |
 | LCD | BL (luz de fundo) | **GP13** (brilho por PWM) |
 | LEDs WS2812B | 5V / GND | **5V** / **GND** |
-| LEDs WS2812B | DIN | **GP29**, passando pelo resistor de 330 Ω |
+| LEDs WS2812B | DIN | Um pad de baixo da placa (**GP17**), passando pelo resistor de 330 Ω. Ligue `USE_LEDS 1` no `config.h` |
 
 > Os pinos **SCL/SDA do LCD são SPI**, apesar do nome parecido com I2C.
-> **RES** e **CS** ficam fixos para economizar pinos, porque a RP2350-Zero tem só 20
-> pinos nas bordas. Na **Pico 2** sobram pinos: se quiser, ligue RES e CS em GPIOs
-> livres e coloque os números em `LCD_RST`/`LCD_CS` no `config.h`.
+> O **CS** fica fixo no GND para economizar pinos. Por isso o **RES precisa ir num
+> GPIO**: com o CS sempre ativo, os pulsos falsos no clock quando a placa reinicia
+> deixam o LCD "fora de compasso", e só um reset por hardware conserta.
+> Se o LCD não mostrar imagem, grave o `firmware/Teste_Hardware`: ele lê a
+> identificação do controlador e diz no Monitor Serial se o LCD está respondendo.
 
 ```
       RP2350-Zero (vista de cima, USB para cima)
@@ -93,7 +95,7 @@ existem na **Pico 2**, então a mesma ligação serve para as duas.
           5V  1|             |23 GP0  ── K1
          GND  2|             |22 GP1  ── K2
          3V3  3|             |21 GP2  ── K3
-LEDs ── GP29  4|             |20 GP3  ── K4
+LCD RES GP29  4|             |20 GP3  ── K4
 Enc SW─ GP28  5|             |19 GP4  ── K5
 Enc B ─ GP27  6|             |18 GP5  ── K6
 Enc A ─ GP26  7|             |17 GP6  ── K7

@@ -22,7 +22,7 @@
 #define LCD_DC    12
 #define LCD_BL    13
 #define LCD_CS    -1   // CS ligado no GND
-#define LCD_RST   -1   // RES ligado no 3V3
+#define LCD_RST   29   // RES ligado no GP29 (reset de verdade). Use -1 se RES estiver no 3V3
 #define ENC_A     26
 #define ENC_B     27
 #define ENC_SW    28
@@ -66,6 +66,100 @@ void startAttempt(int a) {
 }
 Adafruit_NeoPixel onboard(1, ONBOARD_LED, NEO_GRB + NEO_KHZ800);
 
+// ---------------------------------------------------------------------
+//  Diagnostico por "bit-bang": fala com o LCD bem devagar, pino a pino,
+//  e LE a identificacao do controlador pelo proprio pino SDA.
+//  Se o LCD responder, a fiacao de SCL/SDA/DC/CS/RES esta certa.
+// ---------------------------------------------------------------------
+void bbWrite(uint8_t b) {
+  for (int i = 7; i >= 0; i--) {
+    digitalWrite(LCD_MOSI, (b >> i) & 1);
+    delayMicroseconds(2);
+    digitalWrite(LCD_SCK, HIGH);
+    delayMicroseconds(2);
+    digitalWrite(LCD_SCK, LOW);
+  }
+}
+
+void bbCmd(uint8_t c) {
+  digitalWrite(LCD_DC, LOW);
+  bbWrite(c);
+  digitalWrite(LCD_DC, HIGH);
+}
+
+// Envia um comando de leitura e le "bits" bits (com 1 bit de espera opcional).
+// pullup escolhe o resistor interno no SDA: se ninguem responder, a leitura
+// sai toda 1 com pull-up e toda 0 com pull-down.
+uint32_t bbRead(uint8_t c, uint8_t bits, bool dummy, bool pullup) {
+  bbCmd(c);
+  pinMode(LCD_MOSI, pullup ? INPUT_PULLUP : INPUT_PULLDOWN);
+  delayMicroseconds(5);
+  if (dummy) {
+    digitalWrite(LCD_SCK, HIGH);
+    delayMicroseconds(2);
+    digitalWrite(LCD_SCK, LOW);
+    delayMicroseconds(2);
+  }
+  uint32_t v = 0;
+  for (uint8_t i = 0; i < bits; i++) {
+    digitalWrite(LCD_SCK, HIGH);
+    delayMicroseconds(2);
+    v = (v << 1) | digitalRead(LCD_MOSI);
+    digitalWrite(LCD_SCK, LOW);
+    delayMicroseconds(2);
+  }
+  pinMode(LCD_MOSI, OUTPUT);
+  return v;
+}
+
+void lcdDiagnostic() {
+  Serial.println("\n--- Diagnostico do LCD (leitura da identificacao) ---");
+  pinMode(LCD_SCK, OUTPUT);
+  digitalWrite(LCD_SCK, LOW);
+  pinMode(LCD_MOSI, OUTPUT);
+  pinMode(LCD_DC, OUTPUT);
+  digitalWrite(LCD_DC, HIGH);
+  if (LCD_CS >= 0) {
+    pinMode(LCD_CS, OUTPUT);
+    digitalWrite(LCD_CS, LOW);
+  }
+  if (LCD_RST >= 0) {
+    Serial.printf("Reset por hardware no GP%d...\n", LCD_RST);
+    pinMode(LCD_RST, OUTPUT);
+    digitalWrite(LCD_RST, HIGH);
+    delay(10);
+    digitalWrite(LCD_RST, LOW);
+    delay(20);
+    digitalWrite(LCD_RST, HIGH);
+    delay(150);
+  } else {
+    Serial.println("Sem pino de reset (RES no 3V3): usando so reset por comando.");
+  }
+  bbCmd(0x01);   // SWRESET
+  delay(150);
+
+  uint32_t idUp = bbRead(0x04, 24, true, true);
+  uint32_t idDown = bbRead(0x04, 24, true, false);
+  Serial.printf("ID lido com pull-up:   %06lX\n", (unsigned long)idUp);
+  Serial.printf("ID lido com pull-down: %06lX\n", (unsigned long)idDown);
+  if (idUp == idDown && idUp != 0 && idUp != 0xFFFFFF) {
+    Serial.println(">> O LCD RESPONDEU! A fiacao de SCL, SDA, DC, CS e RES esta OK.");
+  } else if (idUp == 0xFFFFFF && idDown == 0) {
+    Serial.println(">> O LCD NAO RESPONDEU (ninguem controla o SDA na leitura).");
+    Serial.println("   Confira SCL->GP14, SDA->GP15, DC->GP12, CS->GND, RES->GP29, VDD->3V3.");
+  } else {
+    Serial.println(">> Resposta estranha: contato ruim ou bits fora de compasso. Me mande estes numeros.");
+  }
+
+  uint32_t pm = bbRead(0x0A, 8, false, true);
+  Serial.printf("Modo de energia antes de acordar: %02lX\n", (unsigned long)pm);
+  bbCmd(0x11);   // SLPOUT
+  delay(150);
+  pm = bbRead(0x0A, 8, false, true);
+  Serial.printf("Modo de energia depois de acordar: %02lX (bit 0x10 ligado = acordou)\n", (unsigned long)pm);
+  Serial.println("--- fim do diagnostico ---");
+}
+
 uint8_t lastState[15];
 uint8_t inputPins[15];
 const char *inputNames[15] = {
@@ -104,7 +198,9 @@ void setup() {
   Serial.println("Luz de fundo ligada (BL = GP13).");
   pinMode(LCD_BL, OUTPUT);
   digitalWrite(LCD_BL, BL_ON);
-  Serial.println("LCD: SCL=GP14, SDA=GP15, DC=GP12, CS=GND, RES=3V3");
+  Serial.printf("LCD: SCL=GP14, SDA=GP15, DC=GP12, CS=%s, RES=%s\n",
+                LCD_CS >= 0 ? "GPIO" : "GND", LCD_RST >= 0 ? "GP29" : "3V3");
+  lcdDiagnostic();
   startAttempt(0);
 }
 

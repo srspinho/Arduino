@@ -42,8 +42,10 @@ static const uint8_t KEY_PINS[12] = {
 //                   a tecla pressionada acende em branco.
 //  LED_PER_KEY 0 -> fita/underglow com qualquer quantidade de LEDs:
 //                   a fita toda pisca em branco a cada tecla.
-#define USE_LEDS     1
-#define LED_PIN      29
+//  Os pinos das bordas da RP2350-Zero acabaram (o GP29 agora e o reset do LCD).
+//  Para os LEDs, use um dos pads de baixo da placa (GP17 a GP25).
+#define USE_LEDS     0
+#define LED_PIN      17
 #define LED_COUNT    12
 #define LED_PER_KEY  0
 #define LED_BRIGHTNESS 40   // 0-255. Mantenha baixo se alimentar pela USB
@@ -61,17 +63,18 @@ static const uint8_t KEY_PINS[12] = {
 
 // --- LCD ST7789 (SPI1) ---
 //  Pinos do modulo:  GND  VDD  SCL  SDA  RES  DC   CS   BL
-//  Ligar em:         GND  3V3  GP14 GP15 3V3  GP12 GND  GP13
+//  Ligar em:         GND  3V3  GP14 GP15 GP29 GP12 GND  GP13
 //  (SCL/SDA aqui sao o clock e o dado do SPI, nao I2C!)
-//  Na Pico 2 sobram pinos: se quiser, ligue RES e CS em GPIOs e
-//  coloque os numeros abaixo (-1 = ligado fixo em 3V3/GND).
+//  O RES PRECISA ir num GPIO: com o CS fixo no GND, so o reset garante que
+//  o LCD entenda os comandos depois que a placa reinicia.
+//  (-1 = ligado fixo em 3V3/GND; nao recomendado para o RES)
 #define LCD_SCK      14
 #define LCD_MOSI     15
 #define LCD_DC       12
 #define LCD_BL       13     // brilho por PWM
 #define LCD_BL_ACTIVE_LOW 0 // 1 se a luz de fundo so acender com BL em LOW
 #define LCD_CS       -1
-#define LCD_RST      -1
+#define LCD_RST      29
 #define LCD_WIDTH    172
 #define LCD_HEIGHT   320
 #define LCD_ROTATION 1      // 1 ou 3 (deitado). Se a imagem sair de cabeca para baixo, use 3
