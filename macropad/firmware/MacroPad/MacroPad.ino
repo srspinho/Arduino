@@ -81,6 +81,7 @@ int readEncoderDetents() {
 void initButton(Button &b, uint8_t pin) {
   b.pin = pin;
   pinMode(pin, INPUT_PULLUP);
+  delayMicroseconds(100);   // da tempo do pull-up subir antes da primeira leitura
   b.lastRaw = digitalRead(pin) == LOW;
   b.pressed = b.lastRaw;
   b.changedAt = millis();

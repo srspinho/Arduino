@@ -201,8 +201,9 @@ void setup() {
   inputPins[14] = ENC_SW;
   for (uint8_t i = 0; i < NUM_INPUTS; i++) {
     pinMode(inputPins[i], INPUT_PULLUP);
-    lastState[i] = digitalRead(inputPins[i]);
   }
+  delay(5);   // da tempo dos pull-ups subirem antes de ler
+  for (uint8_t i = 0; i < NUM_INPUTS; i++) lastState[i] = digitalRead(inputPins[i]);
   Serial.println("Entradas configuradas. Teclas soltas devem ler 1 (HIGH):");
   for (uint8_t i = 0; i < NUM_INPUTS; i++) {
     Serial.printf("  %-14s GP%-2u = %u%s\n", inputNames[i], inputPins[i], lastState[i],
