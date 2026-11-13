@@ -38,7 +38,7 @@ LCD 1.47" 172x320 (GMT147SPI):
 |---|---|
 | `firmware/MacroPad/` | Sketch do Arduino (`MacroPad.ino`). **Toda a personalização fica em `config.h`.** |
 | `case/macropad_case.scad` | Caixa paramétrica em OpenSCAD |
-| `case/stl/` | STLs prontos (versão para RP2350-Zero + LCD 1.47") |
+| `case/stl/` | STLs prontos para a RP2350-Zero, uma pasta para cada tela |
 
 ---
 
@@ -241,7 +241,16 @@ NONE,                                           // nada
 
 ## 6. Caixa impressa em 3D
 
-Arquivos em `case/`. Os STLs prontos estão em `case/stl/`:
+Arquivos em `case/`. Os STLs prontos estão em `case/stl/`, **uma pasta para cada
+tela**. Imprima o `macropad_bottom.stl` e o `macropad_plate.stl` **da mesma pasta**:
+
+| Pasta | Tela | Tamanho da caixa | `LCD_ROTATION` no `config.h` |
+|---|---|---|---|
+| `stl/gmt130_pinos_esquerda/` *(recomendada)* | GMT130 1.3", pinos para a esquerda | 92 x 105 x 22 mm | 1 ou 3 (teste qual deixa a imagem de pé) |
+| `stl/gmt130_pinos_baixo/` | GMT130 1.3", pinos para baixo (para as teclas) | 92 x 117 x 22 mm | 0 (como no teste) |
+| `stl/gmt147/` | GMT147SPI 1.47" | 92 x 103 x 22 mm | 1 |
+
+O knob (`stl/macropad_knob.stl`) é igual para todas.
 
 | Peça | Como imprimir |
 |---|---|
@@ -249,36 +258,40 @@ Arquivos em `case/`. Os STLs prontos estão em `case/stl/`:
 | `macropad_plate.stl` | Já está virado (topo na mesa), sem suporte. **Imprima com 100% de preenchimento** para os clipes dos switches ficarem firmes |
 | `macropad_knob.stl` | Em pé, sem suporte |
 
-Tamanho: **92 x 103 x 22 mm**. Camada de 0.2 mm em PLA ou PETG funciona bem.
+Camada de 0.2 mm em PLA ou PETG funciona bem.
 
 **Mudar as opções** (abra o `.scad` no OpenSCAD e use o *Customizer*, ou edite no topo):
 
+- `screen = "lcd130"` (padrão), `"lcd147"`, `"oled091"` ou `"oled096"`
+- `lcd130_pins = "left"` ou `"bottom"`: lado dos pinos do GMT130
 - `board = "pico2"` para a Raspberry Pi Pico 2 (furo micro-USB e berço maior)
-- **GMT130 (1.3")**: a caixa ainda não foi adaptada para ele. Os STLs atuais têm
-  a janela do 1.47"
-- `screen = "oled091"` / `"oled096"` para usar OLED em vez do LCD (no `config.h`,
-  `DISPLAY_TYPE DISPLAY_OLED` e `OLED_HEIGHT 32` ou `64`)
 - `sw_cut = 14.1` se os switches entrarem muito justos
 - `post_hole = 4.2` para usar insertos térmicos M3
 
-> 📏 Os valores padrão vêm da ficha técnica do **GMT147SPI**: placa de
-> 20.96 x 44 mm, vidro de 19.39 x 36.28 mm (fora do centro da placa) e área ativa
-> de 17.39 x 32.35 mm. A janela segue a área ativa com ~0.4 mm de folga. A tampa
-> tem **2 pinos-guia** que entram nos furos de fixação do LCD, então ele sempre
-> fica alinhado com a janela. Se usar outro módulo de 1.47", ajuste os parâmetros
-> `lcd_*` no topo do `.scad`. As 4 cantoneiras
-> embaixo do plate só seguram os cantos, então os pinos podem sair por qualquer lado.
+> 📏 **GMT130:** as medidas vêm da ficha técnica: placa de 27.78 x 39.22 mm, área
+> ativa de 23.4 x 23.4 mm (deslocada 1.58 mm para o lado dos pinos) e 4 furos de
+> 2 mm a 2.5 mm das bordas. A tampa tem **4 pinos-guia** que entram nesses furos.
+>
+> **GMT147SPI:** placa de 20.96 x 44 mm, vidro fora do centro e área ativa de
+> 17.39 x 32.35 mm, com **2 pinos-guia** nos furos do lado oposto aos pinos.
+>
+> Nos dois casos, a janela segue a área ativa com uma pequena folga, e as 4
+> cantoneiras embaixo da tampa ajudam a posicionar a plaquinha.
+
+> ⚠️ **Barra de pinos do LCD:** solde com a **parte plástica atrás** da plaquinha
+> (pinos apontando para dentro da caixa). Se o plástico ficar na frente, ele
+> encosta na tampa e o LCD não assenta.
 
 ### Montagem
 1. Encaixe os 12 switches no plate (de cima para baixo, até estalar).
 2. Prenda o encoder com a porca que vem com ele.
 3. Tire a película de proteção do LCD e encaixe-o embaixo do plate, com a tela
-   virada para a janela, os **pinos para a esquerda** e os **2 furos nos pinos-guia**
-   (lado do encoder). Prenda com uma gota de cola quente na ponta de cada pino-guia
-   e nas bordas.
+   virada para a janela e os **furos de fixação nos pinos-guia**. No GMT130
+   (versão "pinos para a esquerda"), os pinos ficam do lado oposto ao encoder.
+   Prenda com uma gota de cola quente na ponta de cada pino-guia.
 4. Encaixe a placa no berço da caixa, com o USB virado para o furo de trás.
 5. Solde os fios conforme a tabela da seção 2.
-6. **Grave e teste antes de fechar.**
+6. **Grave e teste antes de fechar.** Ajuste `LCD_ROTATION` até a imagem ficar de pé.
 7. Feche com os 4 parafusos M3 e coloque o knob e as keycaps.
 
 **LEDs:** numa montagem com fios soltos, o mais fácil é colar uma fita WS2812B

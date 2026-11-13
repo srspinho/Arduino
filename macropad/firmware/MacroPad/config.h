@@ -86,7 +86,7 @@ static const uint8_t KEY_PINS[12] = {
 #define LCD_WIDTH    240
 #define LCD_HEIGHT   240
 #define LCD_SPI_MODE SPI_MODE3 // modulos sem pino CS precisam do modo 3
-#define LCD_ROTATION 0      // 0, 1, 2 ou 3: gire ate a imagem ficar na posicao certa
+#define LCD_ROTATION 0      // 0 = pinos para baixo. Na caixa "pinos para a esquerda", use 1 ou 3
 #else
 #define LCD_WIDTH    172
 #define LCD_HEIGHT   320

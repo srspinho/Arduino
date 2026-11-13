@@ -14,7 +14,17 @@
 
 part  = "all";        // [all, bottom, plate, knob]
 board = "zero";       // [zero, pico2]  Waveshare RP2350-Zero ou Raspberry Pi Pico 2
-screen = "lcd147";    // [lcd147, oled091, oled096]  LCD 1.47" ST7789 (GMT147SPI), OLED 0.91" ou 0.96"
+screen = "lcd130";    // [lcd130, lcd147, oled091, oled096]  LCD 1.3" GMT130, LCD 1.47" GMT147SPI, OLED 0.91"/0.96"
+
+/* [LCD 1.3" GMT130 240x240 (7 pinos) - valores da ficha tecnica] */
+// Placa 27.78 x 39.22 mm; area ativa 23.4 x 23.4 mm, centralizada na largura e
+// deslocada 1.58 mm para o lado dos pinos; 4 furos de 2 mm a 2.5 mm das bordas.
+// lcd130_pins: de que lado ficam os pinos na caixa.
+//   "left"   -> pinos para a esquerda: caixa mais curta (92 x 103 mm).
+//               No firmware, gire a imagem com LCD_ROTATION (1 ou 3).
+//   "bottom" -> pinos para baixo (na direcao das teclas): imagem como no
+//               teste (LCD_ROTATION 0), mas a caixa fica 12 mm mais funda.
+lcd130_pins = "left"; // [left, bottom]
 
 /* [LCD 1.47" - valores do GMT147SPI (ficha tecnica GoldenMorning)] */
 // O LCD fica deitado com os PINOS PARA A ESQUERDA e os 2 furos de fixacao
@@ -42,7 +52,9 @@ sw_cut  = 14.0;       // furo do switch MX (14.0 = justo; 14.1 se ficar apertado
 
 /* [Caixa] */
 edge     = 8;         // borda entre a grade de teclas e a lateral externa
-strip    = screen == "lcd147" ? 30 : 22;   // faixa de tras para a tela + encoder
+strip    = screen == "lcd147" ? 30
+         : screen == "lcd130" ? (lcd130_pins == "bottom" ? 44 : 32)
+         : 22;                // faixa de tras para a tela + encoder
 corner_r = 4;
 wall     = 2.4;
 floor_t  = 2.4;
@@ -68,10 +80,26 @@ strip_y = edge + rows * pitch + strip / 2;            // centro da faixa
 enc_pos  = [edge + (cols - 0.5) * pitch, strip_y];      // encoder em cima da coluna 4
 scr_pos  = [edge + 1.5 * pitch, strip_y];               // tela centralizada nas colunas 1-3
 
-// Tela: [largura PCB, altura PCB, largura janela, altura janela, desloc. x da janela]
-scr_dims = screen == "lcd147"  ? [lcd_pcb_w, lcd_pcb_h, lcd_win_w, lcd_win_h, lcd_win_dx]
-         : screen == "oled096" ? [27.5, 27.5, 24, 13, 0]
-         :                       [38.5, 12.5, 24, 7, -2];
+// GMT130 nas coordenadas da caixa (x = direita, y = para tras)
+g130_left = lcd130_pins == "left";
+g130_dims = g130_left ? [39.22, 27.78, 24, 24, -1.58, 0]
+                      : [27.78, 39.22, 24, 24, 0, -1.58];
+g130_pegs = [for (sx = [-1, 1], sy = [-1, 1])
+               g130_left ? [sx * 17.11, sy * 11.39] : [sx * 11.39, sy * 17.11]];
+
+// Tela: [largura PCB, altura PCB, largura janela, altura janela, desloc. x e y da janela]
+scr_dims = screen == "lcd147"  ? [lcd_pcb_w, lcd_pcb_h, lcd_win_w, lcd_win_h, lcd_win_dx, 0]
+         : screen == "lcd130"  ? g130_dims
+         : screen == "oled096" ? [27.5, 27.5, 24, 13, 0, 0]
+         :                       [38.5, 12.5, 24, 7, -2, 0];
+// Pinos-guia nos furos de fixacao: posicoes (relativas ao centro da tela),
+// diametro do pino, diametro do espacador e espessura do vidro
+scr_pegs = screen == "lcd147" ? (lcd_pegs ? [[lcd_hole_x, lcd_hole_y], [lcd_hole_x, -lcd_hole_y]] : [])
+         : screen == "lcd130" ? g130_pegs
+         : [];
+peg_d    = screen == "lcd130" ? 1.7 : 1.9;
+spacer_d = screen == "lcd130" ? 3.2 : 3.4;
+glass_t  = screen == "lcd130" ? 1.5 : lcd_glass_t;
 
 // Placa: [largura, comprimento, altura do centro do USB acima da placa, largura do furo USB, altura do furo USB]
 board_dims = board == "pico2" ? [21, 51, 1.3, 11, 7] : [18, 23.5, 1.6, 13, 7.5];
@@ -152,19 +180,18 @@ module plate() {
               }
       // pinos-guia nos 2 furos do LCD: um espacador da altura do vidro e um
       // pino de 1.9 mm que atravessa a placa
-      if (screen == "lcd147" && lcd_pegs)
-        for (sy = [-1, 1])
-          translate([scr_pos[0] + lcd_hole_x, scr_pos[1] + sy * lcd_hole_y, 0]) {
-            translate([0, 0, -lcd_glass_t]) cylinder(d = 3.4, h = lcd_glass_t + 0.01);
-            translate([0, 0, -lcd_glass_t - 2.2]) cylinder(d = 1.9, h = 2.3, $fn = 24);
-          }
+      for (pg = scr_pegs)
+        translate([scr_pos[0] + pg[0], scr_pos[1] + pg[1], 0]) {
+          translate([0, 0, -glass_t]) cylinder(d = spacer_d, h = glass_t + 0.01);
+          translate([0, 0, -glass_t - 2.2]) cylinder(d = peg_d, h = 2.3, $fn = 24);
+        }
     }
     // switches
     key_positions() translate([-sw_cut / 2, -sw_cut / 2, -5]) cube([sw_cut, sw_cut, 10]);
     // encoder
     translate([enc_pos[0], enc_pos[1], -5]) cylinder(d = enc_hole, h = 10);
     // janela da tela (chanfrada para nao fazer sombra)
-    translate([scr_pos[0] + scr_dims[4], scr_pos[1], -0.01])
+    translate([scr_pos[0] + scr_dims[4], scr_pos[1] + scr_dims[5], -0.01])
       hull() {
         cube([scr_dims[2], scr_dims[3], 0.01], center = true);
         translate([0, 0, plate_t]) cube([scr_dims[2] + 2, scr_dims[3] + 2, 0.02], center = true);
