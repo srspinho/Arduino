@@ -158,6 +158,21 @@ Sem LEDs: `USE_LEDS 0`.
 
 ---
 
+### Sketches de teste (se algo não funcionar)
+
+| Sketch | Para que serve |
+|---|---|
+| `firmware/Teste_Hardware` | Pisca o LED da placa, mostra no Monitor Serial cada tecla e o encoder, e testa o LCD de 3 formas |
+| `firmware/Teste_Fios_LCD` | Liga um sinal do LCD de cada vez, para conferir os fios com o multímetro. Um sinal em nível baixo deve marcar ~0 V: se marcar ~1 V, é mau contato |
+| `firmware/Teste_GMT130` | Teste mínimo do GMT130, sem biblioteca. Se ele pinta a tela, o LCD e a fiação estão bons |
+
+> **Por que o LCD sem pino CS precisa de um cuidado especial:** na RP2350, o SPI
+> liga com o clock em nível baixo e só passa ao modo 3 (clock em nível alto)
+> depois do reset que a biblioteca faz. O LCD conta essa subida como um bit e
+> fica "fora de compasso". O firmware corrige isso dando um segundo reset quando
+> o SPI já está configurado (`lcdRealign()` no `display.h`). Por isso o **RES
+> precisa estar num GPIO** (GP29).
+
 ## 4. Como usar
 
 | Ação | O que faz |
