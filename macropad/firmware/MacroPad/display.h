@@ -1,5 +1,5 @@
 // =====================================================================
-//  Tela: LCD ST7789 172x320 (colorido) ou OLED SSD1306
+//  Tela: LCD ST7789 colorido (240x240 ou 172x320) ou OLED SSD1306
 //  Funcoes usadas pelo MacroPad.ino:
 //    displayBegin()               inicia a tela
 //    displayLayer(layer)          desenha tudo (troca de camada / acordar)
@@ -27,12 +27,14 @@ static inline bool isLightColor(uint8_t r, uint8_t g, uint8_t b) {
 
 static Adafruit_ST7789 tft(&SPI1, LCD_CS, LCD_DC, LCD_RST);
 
-// Layout em modo deitado: 320 x 172
-static const int16_t SCR_W = LCD_HEIGHT, SCR_H = LCD_WIDTH;
+// Layout deitado (ou quadrado): 320 x 172 ou 240 x 240
+static const int16_t SCR_W = LCD_WIDTH > LCD_HEIGHT ? LCD_WIDTH : LCD_HEIGHT;
+static const int16_t SCR_H = LCD_WIDTH > LCD_HEIGHT ? LCD_HEIGHT : LCD_WIDTH;
 static const int16_t HEAD_H = 26;                              // cabecalho
 static const int16_t FOOT_H = 22;                              // rodape (encoder)
-static const int16_t CELL_W = SCR_W / 4;                       // 80
-static const int16_t CELL_H = (SCR_H - HEAD_H - FOOT_H) / 3;   // 41
+static const int16_t CELL_W = SCR_W / 4;                       // 80 ou 60
+static const int16_t CELL_H = (SCR_H - HEAD_H - FOOT_H) / 3;   // 41 ou 64
+static const int16_t LINE_H = 16;                              // altura de uma linha de texto
 
 // Cada parte e desenhada primeiro na memoria e depois enviada de uma vez:
 // assim a tela nao pisca.
@@ -77,30 +79,84 @@ static void printLine(Adafruit_GFX &g, const char *t, const GFXfont *f, int16_t 
   g.print(t);
 }
 
-// Rotulo de uma tecla: negrito numa linha -> negrito em 2 linhas -> normal -> fonte pequena
-static void drawLabel(Adafruit_GFX &g, const char *txt, int16_t cx, int16_t cy, int16_t maxW) {
-  if (textWidth(g, txt, F_BOLD) <= maxW) {
-    printLine(g, txt, F_BOLD, cx, cy + 6);
-    return;
-  }
-  // tenta quebrar em 2 linhas no espaco ou depois da barra
-  const char *brk = strchr(txt, ' ');
-  if (!brk) brk = strchr(txt, '/');
-  if (brk) {
-    char a[24];
-    size_t n = brk - txt + (*brk == '/' ? 1 : 0);
-    if (n > sizeof(a) - 1) n = sizeof(a) - 1;
-    memcpy(a, txt, n);
-    a[n] = 0;
-    const char *b = brk + 1;
-    if (textWidth(g, a, F_BOLD) <= maxW && textWidth(g, b, F_BOLD) <= maxW) {
-      printLine(g, a, F_BOLD, cx, cy - 2);
-      printLine(g, b, F_BOLD, cx, cy + 14);
-      return;
+// Copia "src" cortando o final ate caber em maxW pixels
+static void fitText(Adafruit_GFX &g, const char *src, const GFXfont *f, int16_t maxW, char *out, size_t outSize) {
+  strncpy(out, src, outSize - 1);
+  out[outSize - 1] = 0;
+  size_t n = strlen(out);
+  while (n > 0 && textWidth(g, out, f) > maxW) out[--n] = 0;
+}
+
+// Quebra um rotulo em linhas que cabem em maxW: primeiro nos espacos e depois
+// das barras; uma palavra que nao cabe sozinha e hifenizada ("Desfa-" "zer").
+// Retorna o numero de linhas, ou 0 se precisar de mais que maxLines.
+static const uint8_t MAX_LINES = 4;
+static uint8_t wrapLabel(Adafruit_GFX &g, const char *txt, const GFXfont *f, int16_t maxW,
+                         uint8_t maxLines, char lines[MAX_LINES][24], bool allowHyphen) {
+  uint8_t n = 0;
+  char cur[24] = "";
+  const char *p = txt;
+  while (*p) {
+    // pega a proxima palavra (ate espaco, ou incluindo a barra)
+    char word[24];
+    size_t k = 0;
+    while (*p && *p != ' ' && k < sizeof(word) - 1) {
+      word[k++] = *p;
+      if (*p++ == '/') break;
+    }
+    word[k] = 0;
+    while (*p == ' ') p++;
+
+    const char *w = word;
+    while (*w) {
+      // tenta juntar na linha atual
+      char trial[48];
+      bool needSpace = cur[0] && cur[strlen(cur) - 1] != '/';
+      snprintf(trial, sizeof(trial), "%s%s%s", cur, needSpace ? " " : "", w);
+      if (strlen(trial) < 24 && textWidth(g, trial, f) <= maxW) {
+        strcpy(cur, trial);
+        break;
+      }
+      if (cur[0]) {   // fecha a linha atual e tenta a palavra numa linha nova
+        if (n >= maxLines) return 0;
+        strcpy(lines[n++], cur);
+        cur[0] = 0;
+        continue;
+      }
+      // palavra sozinha nao cabe: hifeniza no maior pedaco que cabe
+      if (!allowHyphen) return 0;
+      size_t len = strlen(w), take = len - 1;
+      char part[24];
+      for (; take > 1; take--) {
+        snprintf(part, sizeof(part), "%.*s-", (int)take, w);
+        if (textWidth(g, part, f) <= maxW) break;
+      }
+      if (take <= 1) return 0;
+      if (n >= maxLines) return 0;
+      snprintf(lines[n++], 24, "%.*s-", (int)take, w);
+      w += take;
     }
   }
-  if (textWidth(g, txt, F_REG) <= maxW) {
-    printLine(g, txt, F_REG, cx, cy + 6);
+  if (cur[0]) {
+    if (n >= maxLines) return 0;
+    strcpy(lines[n++], cur);
+  }
+  return n;
+}
+
+// Rotulo de uma tecla. Ordem de preferencia:
+//   negrito sem hifen -> normal sem hifen -> negrito com hifen -> normal com hifen -> fonte pequena
+static void drawLabel(Adafruit_GFX &g, const char *txt, int16_t cx, int16_t cy, int16_t maxW, int16_t maxH) {
+  uint8_t maxLines = maxH / LINE_H;
+  if (maxLines > MAX_LINES) maxLines = MAX_LINES;
+  char lines[MAX_LINES][24];
+  const GFXfont *fonts[4] = {F_BOLD, F_REG, F_BOLD, F_REG};
+  for (uint8_t t = 0; t < 4; t++) {
+    const GFXfont *f = fonts[t];
+    uint8_t n = wrapLabel(g, txt, f, maxW, maxLines, lines, t >= 2);
+    if (n == 0) continue;
+    int16_t base = cy - (n * LINE_H) / 2 + 12;
+    for (uint8_t i = 0; i < n; i++) printLine(g, lines[i], f, cx, base + i * LINE_H);
     return;
   }
   g.setFont(nullptr);   // ultimo recurso: fonte pequena embutida
@@ -123,7 +179,7 @@ void displayKey(uint8_t layer, uint8_t i, bool down) {
   c.fillRoundRect(2, 2, CELL_W - 4, CELL_H - 4, 6, down ? accent : C_CELL);
   c.drawRoundRect(2, 2, CELL_W - 4, CELL_H - 4, 6, accent);
   c.setTextColor(down ? layerTextColor(L) : C_TEXT);
-  drawLabel(c, L.keys[i].type == A_NONE ? "-" : L.keys[i].label, CELL_W / 2, CELL_H / 2, CELL_W - 9);
+  drawLabel(c, L.keys[i].type == A_NONE ? "-" : L.keys[i].label, CELL_W / 2, CELL_H / 2, CELL_W - 7, CELL_H - 6);
   tft.drawRGBBitmap((i % 4) * CELL_W, HEAD_H + (i / 4) * CELL_H, c.getBuffer(), CELL_W, CELL_H);
 }
 
@@ -133,24 +189,36 @@ void displayStatus(const char *status) {
   c.fillScreen(layerColor(L));
   c.setTextColor(layerTextColor(L));
   printLine(c, L.name, F_BOLD, 6, 19, -1);
+  // a direita: "ultima acao  1/3", encurtando se nao couber
+  int16_t avail = SCR_W - 12 - textWidth(c, L.name, F_BOLD) - 12;
   char buf[32];
   snprintf(buf, sizeof(buf), "%s   %u/%u", status, lcdLayer + 1, NUM_LAYERS);
+  if (textWidth(c, buf, F_REG) > avail) fitText(c, status, F_REG, avail, buf, sizeof(buf));
   printLine(c, buf, F_REG, SCR_W - 6, 19, 1);
   tft.drawRGBBitmap(0, 0, c.getBuffer(), SCR_W, HEAD_H);
 }
 
 static void drawFooter(const Layer &L) {
   GFXcanvas16 &c = footCanvas;
-  char buf[28];
+  char buf[32], fit[28];
   c.fillScreen(C_BG);
-  c.setTextColor(C_DIM);
-  snprintf(buf, sizeof(buf), "< %s", L.encLeft.label);
-  printLine(c, buf, F_REG, 4, 16, -1);
-  snprintf(buf, sizeof(buf), "%s >", L.encRight.label);
-  printLine(c, buf, F_REG, SCR_W - 4, 16, 1);
+  // no centro, o clique; nos lados, o giro (encurtados para nao encostar)
+  fitText(c, L.encClick.label, F_BOLD, SCR_W / 3 - textWidth(c, "[]", F_BOLD), fit, sizeof(fit));
+  snprintf(buf, sizeof(buf), "[%s]", fit);
+  strcpy(fit, buf);
+  int16_t side = (SCR_W - textWidth(c, fit, F_BOLD)) / 2 - 10;
   c.setTextColor(layerColor(L));
-  snprintf(buf, sizeof(buf), "[%s]", L.encClick.label);
-  printLine(c, buf, F_BOLD, SCR_W / 2, 16);
+  printLine(c, fit, F_BOLD, SCR_W / 2, 16);
+  c.setTextColor(C_DIM);
+  fitText(c, L.encLeft.label, F_REG, side - textWidth(c, "<", F_REG), fit, sizeof(fit));
+  snprintf(buf, sizeof(buf), "<%s", fit);
+  printLine(c, buf, F_REG, 4, 16, -1);
+  snprintf(buf, sizeof(buf), "%s>", L.encRight.label);
+  if (textWidth(c, buf, F_REG) > side) {   // corta o texto mas mantem a seta
+    fitText(c, L.encRight.label, F_REG, side - textWidth(c, ">", F_REG), fit, sizeof(fit));
+    snprintf(buf, sizeof(buf), "%s>", fit);
+  }
+  printLine(c, buf, F_REG, SCR_W - 4, 16, 1);
   tft.drawRGBBitmap(0, SCR_H - FOOT_H, c.getBuffer(), SCR_W, FOOT_H);
 }
 

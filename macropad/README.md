@@ -1,6 +1,6 @@
 # MacroPad 4x3 + encoder (RP2350, Arduino IDE)
 
-Macropad USB com **12 teclas mecânicas**, **encoder rotativo com clique**, **LCD colorido de 1.47"**
+Macropad USB com **12 teclas mecânicas**, **encoder rotativo com clique**, **LCD colorido** (1.3" 240x240 ou 1.47" 172x320)
 que mostra o que cada tecla faz, e **LEDs RGB** (opcionais). O PC reconhece como um teclado comum, sem driver nem
 programa extra, no Windows, Linux e macOS.
 
@@ -9,7 +9,13 @@ programa extra, no Windows, Linux e macOS.
 Telas geradas pelo próprio código do firmware, rodando num LCD simulado
 (camada 1 com a tecla Play/Pause pressionada, camada 2 e camada 3):
 
-<img src="firmware/lcd_telas.png" width="480" alt="Telas do LCD">
+LCD 1.3" 240x240 (GMT130):
+
+<img src="firmware/lcd_telas_130.png" width="600" alt="Telas do LCD 1.3 polegada">
+
+LCD 1.47" 172x320 (GMT147SPI):
+
+<img src="firmware/lcd_telas.png" width="600" alt="Telas do LCD 1.47 polegada">
 
 ```
  ┌──────────────────────────────────┐
@@ -44,7 +50,7 @@ Telas geradas pelo próprio código do firmware, rodando num LCD simulado
 | 12 | Switches mecânicos MX (Gateron, Kailh, Outemu…) | Qualquer switch padrão MX |
 | 12 | Keycaps MX 1u | Perfil baixo (DSA/XDA) fica bonito em macropad |
 | 1 | Encoder **EC11** com botão (eixo D de 6 mm, rosca M7) | Com 20 ou 24 cliques por volta |
-| 1 | LCD **1.47" 172x320 ST7789** (ex.: GMT147SPI) | Também dá para usar um OLED SSD1306 (veja a seção 3) |
+| 1 | LCD **ST7789**: **GMT130 1.3" 240x240** (7 pinos) ou GMT147SPI 1.47" 172x320 | Também dá para usar um OLED SSD1306 (veja a seção 3) |
 | 12 | LEDs **WS2812B** *(opcional)* | Pedaço de fita 5 V ou módulos avulsos |
 | 1 | Resistor 330 Ω *(se usar LEDs)* | Em série no fio de dados |
 | 4 | Parafusos M3 x 8 mm cabeça panela | Rosqueiam direto no plástico |
@@ -72,13 +78,13 @@ existem na **Pico 2**, então a mesma ligação serve para as duas.
 | Encoder | C (pino do meio, lado de 3 pinos) | **GND** |
 | Encoder | SW (lado de 2 pinos) | **GP28** e o outro pino no **GND** |
 | LCD | GND | **GND** |
-| LCD | VDD | **3V3** (o módulo aceita só 2,8–3,3 V: **não ligue no 5V**) |
+| LCD | VCC / VDD | **3V3** (**não ligue no 5V**) |
 | LCD | SCL (clock do SPI) | **GP14** |
 | LCD | SDA (dado do SPI) | **GP15** |
 | LCD | RES | **GP29** (reset do LCD, **não ligue no 3V3**) |
 | LCD | DC | **GP12** |
-| LCD | CS | **GND** (fixo) |
-| LCD | BL (luz de fundo) | **GP13** (brilho por PWM) |
+| LCD | CS | **GND** (só o 1.47" tem esse pino; o GMT130 não tem) |
+| LCD | BLK / BL (luz de fundo) | **GP13** (brilho por PWM) |
 | LEDs WS2812B | 5V / GND | **5V** / **GND** |
 | LEDs WS2812B | DIN | Um pad de baixo da placa (**GP17**), passando pelo resistor de 330 Ω. Ligue `USE_LEDS 1` no `config.h` |
 
@@ -136,11 +142,12 @@ No `config.h`, `DISPLAY_TYPE` escolhe a tela:
 
 | Valor | Tela |
 |---|---|
-| `DISPLAY_LCD` *(padrão)* | LCD colorido 1.47" ST7789. Mostra a camada, as 12 teclas, o encoder e a última ação |
+| `DISPLAY_LCD` *(padrão)* | LCD colorido ST7789. Mostra a camada, as 12 teclas, o encoder e a última ação. Escolha o modelo em `LCD_MODEL`: `LCD_130` (GMT130 1.3", padrão) ou `LCD_147` (GMT147SPI 1.47") |
 | `DISPLAY_OLED` | OLED SSD1306 0.91"/0.96" (I2C: SDA=GP12, SCL=GP13) |
 | `DISPLAY_NONE` | Sem tela |
 
 Se o LCD acender mas a imagem estiver estranha:
+- **Imagem girada** no 1.3": mude `LCD_ROTATION` (0, 1, 2 ou 3).
 - **Cores invertidas** (fundo branco): mude `LCD_INVERT` para `0`.
 - **Imagem de cabeça para baixo**: mude `LCD_ROTATION` para `3`.
 - **Imagem deslocada ou com faixa de lixo na borda**: o seu módulo pode não ser
@@ -232,6 +239,8 @@ Tamanho: **92 x 103 x 22 mm**. Camada de 0.2 mm em PLA ou PETG funciona bem.
 **Mudar as opções** (abra o `.scad` no OpenSCAD e use o *Customizer*, ou edite no topo):
 
 - `board = "pico2"` para a Raspberry Pi Pico 2 (furo micro-USB e berço maior)
+- **GMT130 (1.3")**: a caixa ainda não foi adaptada para ele. Os STLs atuais têm
+  a janela do 1.47"
 - `screen = "oled091"` / `"oled096"` para usar OLED em vez do LCD (no `config.h`,
   `DISPLAY_TYPE DISPLAY_OLED` e `OLED_HEIGHT 32` ou `64`)
 - `sw_cut = 14.1` se os switches entrarem muito justos

@@ -52,7 +52,7 @@ static const uint8_t KEY_PINS[12] = {
 
 // ---------------------------------------------------------------------
 //  TELA
-//    DISPLAY_LCD   -> LCD colorido 1.47" 172x320 ST7789 (GMT147SPI)
+//    DISPLAY_LCD   -> LCD colorido ST7789 (escolha o modelo em LCD_MODEL)
 //    DISPLAY_OLED  -> OLED SSD1306 I2C 0.91"/0.96"
 //    DISPLAY_NONE  -> sem tela
 // ---------------------------------------------------------------------
@@ -62,12 +62,19 @@ static const uint8_t KEY_PINS[12] = {
 #define DISPLAY_TYPE DISPLAY_LCD
 
 // --- LCD ST7789 (SPI1) ---
-//  Pinos do modulo:  GND  VDD  SCL  SDA  RES  DC   CS   BL
-//  Ligar em:         GND  3V3  GP14 GP15 GP29 GP12 GND  GP13
-//  (SCL/SDA aqui sao o clock e o dado do SPI, nao I2C!)
-//  O RES PRECISA ir num GPIO: com o CS fixo no GND, so o reset garante que
-//  o LCD entenda os comandos depois que a placa reinicia.
-//  (-1 = ligado fixo em 3V3/GND; nao recomendado para o RES)
+//  LCD_130 -> GMT130 1.3" 240x240, 7 pinos, SEM pino CS
+//  LCD_147 -> GMT147SPI 1.47" 172x320, 8 pinos, com pino CS
+#define LCD_130 130
+#define LCD_147 147
+#define LCD_MODEL LCD_130
+//
+//  Ligacao (os dois modelos):
+//    GND -> GND      VCC/VDD -> 3V3 (NAO use 5V)
+//    SCL -> GP14     SDA -> GP15      (SCL/SDA aqui sao SPI, nao I2C!)
+//    RES -> GP29     DC  -> GP12      BLK/BL -> GP13
+//    CS  -> GND      (so no 1.47"; o 1.3" nao tem esse pino)
+//  O RES PRECISA ir num GPIO: sem CS, so o reset garante que o LCD
+//  entenda os comandos depois que a placa reinicia.
 #define LCD_SCK      14
 #define LCD_MOSI     15
 #define LCD_DC       12
@@ -75,11 +82,18 @@ static const uint8_t KEY_PINS[12] = {
 #define LCD_BL_ACTIVE_LOW 0 // 1 se a luz de fundo so acender com BL em LOW
 #define LCD_CS       -1
 #define LCD_RST      29
+#if LCD_MODEL == LCD_130
+#define LCD_WIDTH    240
+#define LCD_HEIGHT   240
+#define LCD_SPI_MODE SPI_MODE3 // modulos sem pino CS precisam do modo 3
+#define LCD_ROTATION 0      // 0, 1, 2 ou 3: gire ate a imagem ficar na posicao certa
+#else
 #define LCD_WIDTH    172
 #define LCD_HEIGHT   320
+#define LCD_SPI_MODE SPI_MODE0
 #define LCD_ROTATION 1      // 1 ou 3 (deitado). Se a imagem sair de cabeca para baixo, use 3
+#endif
 #define LCD_SPI_HZ   20000000  // baixe para 10000000 se a imagem vier com falhas (fios longos)
-#define LCD_SPI_MODE SPI_MODE0 // use SPI_MODE3 se o Teste_Hardware so funcionar na tentativa 2
 #define LCD_BRIGHTNESS 200  // 0-255
 #define LCD_INVERT   1      // se as cores aparecerem invertidas, mude para 0
 

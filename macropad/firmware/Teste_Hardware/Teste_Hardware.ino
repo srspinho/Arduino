@@ -21,8 +21,18 @@
 #define LCD_MOSI  15
 #define LCD_DC    12
 #define LCD_BL    13
-#define LCD_CS    28   // CS no GP28 (teste). Use -1 se o CS estiver ligado no GND
-                       // (o botao do encoder fica fora do teste enquanto o CS usa o GP28)
+// Modelo do LCD: 130 = GMT130 1.3" 240x240 (sem pino CS)
+//                147 = GMT147SPI 1.47" 172x320
+#define LCD_MODEL 130
+#if LCD_MODEL == 130
+#define LCD_W 240
+#define LCD_H 240
+#else
+#define LCD_W 172
+#define LCD_H 320
+#endif
+#define LCD_CS    -1   // -1 = sem pino CS (GMT130) ou CS no GND. Para CS num GPIO, coloque o numero
+                       // (se usar o GP28, o botao do encoder fica fora do teste)
 #define LCD_RST   29   // RES ligado no GP29 (reset de verdade). Use -1 se RES estiver no 3V3
 #define ENC_A     26
 #define ENC_B     27
@@ -40,7 +50,7 @@ uint32_t attemptStart = 0;
 const uint8_t NUM_ATTEMPTS = 3;
 const char *ATTEMPT_NAMES[NUM_ATTEMPTS] = {
   "SPI1 por hardware, modo 0 (padrao da biblioteca)",
-  "SPI1 por hardware, modo 3 (comum quando o CS fica no GND)",
+  "SPI1 por hardware, modo 3 (o GMT130 sem CS deve funcionar AQUI)",
   "SPI por software / bit-bang (ignora o periferico SPI)",
 };
 
@@ -56,11 +66,11 @@ void startAttempt(int a) {
     SPI1.setSCK(LCD_SCK);
     SPI1.setTX(LCD_MOSI);
     tft = new Adafruit_ST7789(&SPI1, LCD_CS, LCD_DC, LCD_RST);
-    tft->init(172, 320, a == 0 ? SPI_MODE0 : SPI_MODE3);
+    tft->init(LCD_W, LCD_H, a == 0 ? SPI_MODE0 : SPI_MODE3);
     tft->setSPISpeed(4000000);   // devagar de proposito, para tolerar fios longos
   } else {
     tft = new Adafruit_ST7789(LCD_CS, LCD_DC, LCD_MOSI, LCD_SCK, LCD_RST);
-    tft->init(172, 320);
+    tft->init(LCD_W, LCD_H);
   }
   tft->setRotation(1);
   attemptStart = millis();
@@ -214,7 +224,7 @@ void setup() {
   pinMode(LCD_BL, OUTPUT);
   digitalWrite(LCD_BL, BL_ON);
   Serial.printf("LCD: SCL=GP14, SDA=GP15, DC=GP12, CS=%s, RES=%s\n",
-                LCD_CS >= 0 ? "GP28" : "GND", LCD_RST >= 0 ? "GP29" : "3V3");
+                LCD_CS >= 0 ? "GPIO" : "GND/sem CS", LCD_RST >= 0 ? "GP29" : "3V3");
   lcdDiagnostic();
   startAttempt(0);
 }
