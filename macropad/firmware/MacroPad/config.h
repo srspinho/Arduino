@@ -69,6 +69,7 @@ static const uint8_t KEY_PINS[12] = {
 #define LCD_MOSI     15
 #define LCD_DC       12
 #define LCD_BL       13     // brilho por PWM
+#define LCD_BL_ACTIVE_LOW 0 // 1 se a luz de fundo so acender com BL em LOW
 #define LCD_CS       -1
 #define LCD_RST      -1
 #define LCD_WIDTH    172

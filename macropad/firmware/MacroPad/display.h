@@ -111,6 +111,10 @@ static void drawLabel(Adafruit_GFX &g, const char *txt, int16_t cx, int16_t cy, 
 
 static uint8_t lcdLayer = 0;
 
+static void setBacklight(uint8_t level) {
+  analogWrite(LCD_BL, LCD_BL_ACTIVE_LOW ? 255 - level : level);
+}
+
 void displayKey(uint8_t layer, uint8_t i, bool down) {
   const Layer &L = LAYERS[layer];
   GFXcanvas16 &c = cellCanvas;
@@ -152,7 +156,7 @@ static void drawFooter(const Layer &L) {
 
 void displayBegin() {
   pinMode(LCD_BL, OUTPUT);
-  analogWrite(LCD_BL, 0);
+  setBacklight(0);
   SPI1.setSCK(LCD_SCK);
   SPI1.setTX(LCD_MOSI);
   tft.init(LCD_WIDTH, LCD_HEIGHT);
@@ -160,7 +164,7 @@ void displayBegin() {
   tft.invertDisplay(LCD_INVERT);
   tft.setRotation(LCD_ROTATION);
   tft.fillScreen(C_BG);
-  analogWrite(LCD_BL, LCD_BRIGHTNESS);
+  setBacklight(LCD_BRIGHTNESS);
 }
 
 void displayLayer(uint8_t layer) {
@@ -171,7 +175,7 @@ void displayLayer(uint8_t layer) {
 }
 
 void displaySleep(bool sleeping) {
-  analogWrite(LCD_BL, sleeping ? 0 : LCD_BRIGHTNESS);
+  setBacklight(sleeping ? 0 : LCD_BRIGHTNESS);
   if (sleeping) tft.fillScreen(C_BG);
 }
 

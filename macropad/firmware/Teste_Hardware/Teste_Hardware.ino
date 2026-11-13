@@ -5,6 +5,7 @@
 //   1. O LED RGB da propria placa (GP16) pisca colorido -> o programa roda
 //   2. O Monitor Serial mostra "vivo 1, vivo 2..."    -> USB/serial ok
 //   3. O LCD troca de cor a cada segundo               -> LCD ok
+//      (a luz de fundo alterna HIGH/LOW a cada 2 s: veja em qual ela acende)
 //   4. Apertar teclas / girar o encoder aparece na serial -> fiacao ok
 //
 //  Placa: Waveshare RP2350 Zero. USB Stack: Pico SDK.
@@ -103,7 +104,12 @@ void loop() {
     tft.setCursor(20, 100);
     tft.printf("teste %u", n);
 
-    Serial.printf("vivo %u - LCD deveria estar %s\n", n, names[c]);
+    // alterna a luz de fundo a cada 2 s: alguns modulos acendem com HIGH, outros com LOW
+    bool blHigh = (n / 2) % 2 == 0;
+    digitalWrite(LCD_BL, blHigh ? HIGH : LOW);
+
+    Serial.printf("vivo %u - LCD deveria estar %s - luz de fundo (BL/GP13) em %s\n",
+                  n, names[c], blHigh ? "HIGH" : "LOW");
   }
 
   // --- teclas e encoder ---
