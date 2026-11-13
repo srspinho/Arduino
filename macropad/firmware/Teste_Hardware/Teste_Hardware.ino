@@ -21,7 +21,8 @@
 #define LCD_MOSI  15
 #define LCD_DC    12
 #define LCD_BL    13
-#define LCD_CS    -1   // CS ligado no GND
+#define LCD_CS    28   // CS no GP28 (teste). Use -1 se o CS estiver ligado no GND
+                       // (o botao do encoder fica fora do teste enquanto o CS usa o GP28)
 #define LCD_RST   29   // RES ligado no GP29 (reset de verdade). Use -1 se RES estiver no 3V3
 #define ENC_A     26
 #define ENC_B     27
@@ -81,7 +82,15 @@ void bbWrite(uint8_t b) {
   }
 }
 
+// Seleciona (CS em LOW) ou libera (CS em HIGH) o LCD, se o CS estiver num pino
+void csSel(bool on) {
+  if (LCD_CS >= 0) digitalWrite(LCD_CS, on ? LOW : HIGH);
+  delayMicroseconds(2);
+}
+
+// Envia um comando e deixa o LCD selecionado (o chamador libera com csSel(false))
 void bbCmd(uint8_t c) {
+  csSel(true);
   digitalWrite(LCD_DC, LOW);
   bbWrite(c);
   digitalWrite(LCD_DC, HIGH);
@@ -108,6 +117,7 @@ uint32_t bbRead(uint8_t c, uint8_t bits, bool dummy, bool pullup) {
     digitalWrite(LCD_SCK, LOW);
     delayMicroseconds(2);
   }
+  csSel(false);
   pinMode(LCD_MOSI, OUTPUT);
   return v;
 }
@@ -121,7 +131,7 @@ void lcdDiagnostic() {
   digitalWrite(LCD_DC, HIGH);
   if (LCD_CS >= 0) {
     pinMode(LCD_CS, OUTPUT);
-    digitalWrite(LCD_CS, LOW);
+    digitalWrite(LCD_CS, HIGH);   // comeca liberado; cada comando seleciona e libera
   }
   if (LCD_RST >= 0) {
     Serial.printf("Reset por hardware no GP%d...\n", LCD_RST);
@@ -136,6 +146,7 @@ void lcdDiagnostic() {
     Serial.println("Sem pino de reset (RES no 3V3): usando so reset por comando.");
   }
   bbCmd(0x01);   // SWRESET
+  csSel(false);
   delay(150);
 
   uint32_t idUp = bbRead(0x04, 24, true, true);
@@ -146,7 +157,7 @@ void lcdDiagnostic() {
     Serial.println(">> O LCD RESPONDEU! A fiacao de SCL, SDA, DC, CS e RES esta OK.");
   } else if (idUp == 0xFFFFFF && idDown == 0) {
     Serial.println(">> O LCD NAO RESPONDEU (ninguem controla o SDA na leitura).");
-    Serial.println("   Confira SCL->GP14, SDA->GP15, DC->GP12, CS->GND, RES->GP29, VDD->3V3.");
+    Serial.println("   (Alguns modulos nao deixam ler pelo SDA: veja tambem se a tela mostra cores.)");
   } else {
     Serial.println(">> Resposta estranha: contato ruim ou bits fora de compasso. Me mande estes numeros.");
   }
@@ -154,12 +165,15 @@ void lcdDiagnostic() {
   uint32_t pm = bbRead(0x0A, 8, false, true);
   Serial.printf("Modo de energia antes de acordar: %02lX\n", (unsigned long)pm);
   bbCmd(0x11);   // SLPOUT
+  csSel(false);
   delay(150);
   pm = bbRead(0x0A, 8, false, true);
   Serial.printf("Modo de energia depois de acordar: %02lX (bit 0x10 ligado = acordou)\n", (unsigned long)pm);
   Serial.println("--- fim do diagnostico ---");
 }
 
+// Com o CS no GP28, o botao do encoder (GP28) sai da lista de entradas
+const uint8_t NUM_INPUTS = (LCD_CS == ENC_SW) ? 14 : 15;
 uint8_t lastState[15];
 uint8_t inputPins[15];
 const char *inputNames[15] = {
@@ -185,12 +199,12 @@ void setup() {
   inputPins[12] = ENC_A;
   inputPins[13] = ENC_B;
   inputPins[14] = ENC_SW;
-  for (uint8_t i = 0; i < 15; i++) {
+  for (uint8_t i = 0; i < NUM_INPUTS; i++) {
     pinMode(inputPins[i], INPUT_PULLUP);
     lastState[i] = digitalRead(inputPins[i]);
   }
   Serial.println("Entradas configuradas. Teclas soltas devem ler 1 (HIGH):");
-  for (uint8_t i = 0; i < 15; i++) {
+  for (uint8_t i = 0; i < NUM_INPUTS; i++) {
     Serial.printf("  %-14s GP%-2u = %u%s\n", inputNames[i], inputPins[i], lastState[i],
                   (i < 12 && lastState[i] == 0) ? "   <-- LOW sem apertar? curto com GND?" : "");
   }
@@ -199,7 +213,7 @@ void setup() {
   pinMode(LCD_BL, OUTPUT);
   digitalWrite(LCD_BL, BL_ON);
   Serial.printf("LCD: SCL=GP14, SDA=GP15, DC=GP12, CS=%s, RES=%s\n",
-                LCD_CS >= 0 ? "GPIO" : "GND", LCD_RST >= 0 ? "GP29" : "3V3");
+                LCD_CS >= 0 ? "GP28" : "GND", LCD_RST >= 0 ? "GP29" : "3V3");
   lcdDiagnostic();
   startAttempt(0);
 }
@@ -234,7 +248,7 @@ void loop() {
   }
 
   // --- teclas e encoder ---
-  for (uint8_t i = 0; i < 15; i++) {
+  for (uint8_t i = 0; i < NUM_INPUTS; i++) {
     uint8_t s = digitalRead(inputPins[i]);
     if (s != lastState[i]) {
       lastState[i] = s;
