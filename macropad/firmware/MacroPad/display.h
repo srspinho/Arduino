@@ -159,7 +159,7 @@ void displayBegin() {
   setBacklight(0);
   SPI1.setSCK(LCD_SCK);
   SPI1.setTX(LCD_MOSI);
-  tft.init(LCD_WIDTH, LCD_HEIGHT);
+  tft.init(LCD_WIDTH, LCD_HEIGHT, LCD_SPI_MODE);
   tft.setSPISpeed(LCD_SPI_HZ);
   tft.invertDisplay(LCD_INVERT);
   tft.setRotation(LCD_ROTATION);

@@ -5,7 +5,8 @@
 //   1. O LED RGB da propria placa (GP16) pisca colorido -> o programa roda
 //   2. O Monitor Serial mostra "vivo 1, vivo 2..."    -> USB/serial ok
 //   3. O LCD troca de cor a cada segundo               -> LCD ok
-//      (a luz de fundo alterna HIGH/LOW a cada 2 s: veja em qual ela acende)
+//      O teste tenta 3 jeitos de falar com o LCD, 8 s cada, em ciclo.
+//      A serial mostra qual tentativa esta rodando: anote em qual aparece imagem.
 //   4. Apertar teclas / girar o encoder aparece na serial -> fiacao ok
 //
 //  Placa: Waveshare RP2350 Zero. USB Stack: Pico SDK.
@@ -29,7 +30,40 @@
 
 static const uint8_t KEY_PINS[12] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11};
 
-Adafruit_ST7789 tft(&SPI1, LCD_CS, LCD_DC, LCD_RST);
+// Nivel que acende a luz de fundo (HIGH na maioria dos modulos)
+#define BL_ON HIGH
+
+Adafruit_ST7789 *tft = nullptr;
+int attempt = 0;
+uint32_t attemptStart = 0;
+const uint8_t NUM_ATTEMPTS = 3;
+const char *ATTEMPT_NAMES[NUM_ATTEMPTS] = {
+  "SPI1 por hardware, modo 0 (padrao da biblioteca)",
+  "SPI1 por hardware, modo 3 (comum quando o CS fica no GND)",
+  "SPI por software / bit-bang (ignora o periferico SPI)",
+};
+
+void startAttempt(int a) {
+  if (tft) {
+    delete tft;
+    tft = nullptr;
+  }
+  SPI1.end();
+  attempt = a;
+  Serial.printf("\n=== Tentativa %d/%d: %s ===\n", a + 1, NUM_ATTEMPTS, ATTEMPT_NAMES[a]);
+  if (a < 2) {
+    SPI1.setSCK(LCD_SCK);
+    SPI1.setTX(LCD_MOSI);
+    tft = new Adafruit_ST7789(&SPI1, LCD_CS, LCD_DC, LCD_RST);
+    tft->init(172, 320, a == 0 ? SPI_MODE0 : SPI_MODE3);
+    tft->setSPISpeed(4000000);   // devagar de proposito, para tolerar fios longos
+  } else {
+    tft = new Adafruit_ST7789(LCD_CS, LCD_DC, LCD_MOSI, LCD_SCK, LCD_RST);
+    tft->init(172, 320);
+  }
+  tft->setRotation(1);
+  attemptStart = millis();
+}
 Adafruit_NeoPixel onboard(1, ONBOARD_LED, NEO_GRB + NEO_KHZ800);
 
 uint8_t lastState[15];
@@ -67,17 +101,11 @@ void setup() {
                   (i < 12 && lastState[i] == 0) ? "   <-- LOW sem apertar? curto com GND?" : "");
   }
 
-  Serial.println("Ligando luz de fundo do LCD (BL = GP13 em HIGH)...");
+  Serial.println("Luz de fundo ligada (BL = GP13).");
   pinMode(LCD_BL, OUTPUT);
-  digitalWrite(LCD_BL, HIGH);
-
-  Serial.println("Iniciando LCD (SPI1: SCL=GP14, SDA=GP15, DC=GP12) a 10 MHz...");
-  SPI1.setSCK(LCD_SCK);
-  SPI1.setTX(LCD_MOSI);
-  tft.init(172, 320);
-  tft.setSPISpeed(10000000);   // devagar de proposito, para tolerar fios longos
-  tft.setRotation(1);
-  Serial.println("LCD iniciado (o LCD nao responde de volta, entao veja se a tela mudou).");
+  digitalWrite(LCD_BL, BL_ON);
+  Serial.println("LCD: SCL=GP14, SDA=GP15, DC=GP12, CS=GND, RES=3V3");
+  startAttempt(0);
 }
 
 void loop() {
@@ -95,21 +123,18 @@ void loop() {
     onboard.setPixelColor(0, n % 2 ? onboard.Color(0, 255, 0) : onboard.Color(255, 0, 255));
     onboard.show();
 
-    tft.fillScreen(colors[c]);
-    tft.setTextColor(c == 3 ? ST77XX_BLACK : ST77XX_WHITE);
-    tft.setTextSize(4);
-    tft.setCursor(20, 40);
-    tft.print(names[c]);
-    tft.setTextSize(3);
-    tft.setCursor(20, 100);
-    tft.printf("teste %u", n);
+    if (millis() - attemptStart >= 8000) startAttempt((attempt + 1) % NUM_ATTEMPTS);
 
-    // alterna a luz de fundo a cada 2 s: alguns modulos acendem com HIGH, outros com LOW
-    bool blHigh = (n / 2) % 2 == 0;
-    digitalWrite(LCD_BL, blHigh ? HIGH : LOW);
+    tft->fillScreen(colors[c]);
+    tft->setTextColor(c == 3 ? ST77XX_BLACK : ST77XX_WHITE);
+    tft->setTextSize(4);
+    tft->setCursor(20, 40);
+    tft->print(names[c]);
+    tft->setTextSize(3);
+    tft->setCursor(20, 100);
+    tft->printf("tentativa %d", attempt + 1);
 
-    Serial.printf("vivo %u - LCD deveria estar %s - luz de fundo (BL/GP13) em %s\n",
-                  n, names[c], blHigh ? "HIGH" : "LOW");
+    Serial.printf("vivo %u - tentativa %d - LCD deveria estar %s\n", n, attempt + 1, names[c]);
   }
 
   // --- teclas e encoder ---

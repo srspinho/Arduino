@@ -75,7 +75,8 @@ static const uint8_t KEY_PINS[12] = {
 #define LCD_WIDTH    172
 #define LCD_HEIGHT   320
 #define LCD_ROTATION 1      // 1 ou 3 (deitado). Se a imagem sair de cabeca para baixo, use 3
-#define LCD_SPI_HZ   40000000
+#define LCD_SPI_HZ   20000000  // baixe para 10000000 se a imagem vier com falhas (fios longos)
+#define LCD_SPI_MODE SPI_MODE0 // use SPI_MODE3 se o Teste_Hardware so funcionar na tentativa 2
 #define LCD_BRIGHTNESS 200  // 0-255
 #define LCD_INVERT   1      // se as cores aparecerem invertidas, mude para 0
 
