@@ -12,7 +12,7 @@
 //  post_hole para 4.2.
 // =====================================================================
 
-part  = "all";        // [all, bottom, plate, knob]
+part  = "all";        // [all, bottom, plate, knob, teste_furos]
 board = "zero";       // [zero, pico2]  Waveshare RP2350-Zero ou Raspberry Pi Pico 2
 screen = "lcd130";    // [lcd130, lcd147, oled091, oled096]  LCD 1.3" GMT130, LCD 1.47" GMT147SPI, OLED 0.91"/0.96"
 
@@ -48,7 +48,9 @@ lcd_hole_y  = 8.3;    // distancia do centro da placa ate cada furo, na largura
 pitch   = 19.05;      // espacamento padrao MX
 cols    = 4;
 rows    = 3;
-sw_cut  = 14.0;       // furo do switch MX (14.0 = justo; 14.1 se ficar apertado)
+sw_cut  = 14.2;       // furo do switch MX. A medida nominal e 14.0, mas a impressora
+                      // fecha os furos ~0.2 mm. Use a peca "teste_furos" para achar o seu valor.
+sw_chamfer = 0.4;     // chanfro na entrada do furo (compensa o "pe de elefante" da 1a camada)
 
 /* [Caixa] */
 edge     = 8;         // borda entre a grade de teclas e a lateral externa
@@ -155,6 +157,34 @@ module bottom() {
   }
 }
 
+// Furo do switch: quadrado reto + chanfro na face de cima (entrada do switch)
+module switch_hole(size) {
+  translate([-size / 2, -size / 2, -5]) cube([size, size, 10]);
+  hull() {
+    translate([-size / 2, -size / 2, plate_t - sw_chamfer]) cube([size, size, 0.01]);
+    translate([-size / 2 - sw_chamfer, -size / 2 - sw_chamfer, plate_t])
+      cube([size + 2 * sw_chamfer, size + 2 * sw_chamfer, 0.02]);
+  }
+}
+
+// Peca de teste: 5 furos de 14.0 a 14.4 mm. O numero de marcas ao lado de
+// cada furo indica o tamanho: 1 marca = 14.0, 2 = 14.1 ... 5 = 14.4.
+// Imprima do mesmo jeito que a tampa (ja sai virada) e veja em qual o switch
+// encaixa firme, com um "clique". Depois coloque esse valor em sw_cut.
+module test_holes() {
+  n = 5;
+  difference() {
+    rounded_rect(n * pitch + 6, pitch + 10, plate_t, 2);
+    for (i = [0 : n - 1]) {
+      translate([3 + (i + 0.5) * pitch, 3 + pitch / 2, 0]) switch_hole(14.0 + i * 0.1);
+      // marcas: i+1 furinhos acima do furo
+      for (k = [0 : i])
+        translate([3 + (i + 0.5) * pitch - i * 1.25 + k * 2.5, pitch + 6.5, -1])
+          cylinder(d = 1.4, h = 5, $fn = 12);
+    }
+  }
+}
+
 // -------------------------------- plate ------------------------------
 module plate() {
   ow = scr_dims[0]; od = scr_dims[1];
@@ -187,7 +217,7 @@ module plate() {
         }
     }
     // switches
-    key_positions() translate([-sw_cut / 2, -sw_cut / 2, -5]) cube([sw_cut, sw_cut, 10]);
+    key_positions() switch_hole(sw_cut);
     // encoder
     translate([enc_pos[0], enc_pos[1], -5]) cylinder(d = enc_hole, h = 10);
     // janela da tela (chanfrada para nao fazer sombra)
@@ -224,6 +254,7 @@ module knob() {
 if (part == "bottom") bottom();
 else if (part == "plate") translate([0, 0, plate_t]) rotate([180, 0, 0]) translate([0, -D, 0]) plate();
 else if (part == "knob") knob();
+else if (part == "teste_furos") translate([0, 0, plate_t]) rotate([180, 0, 0]) test_holes();
 else {
   color("dimgray") bottom();
   color("lightgray") translate([0, 0, H]) plate();

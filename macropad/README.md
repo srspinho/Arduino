@@ -252,6 +252,13 @@ tela**. Imprima o `macropad_bottom.stl` e o `macropad_plate.stl` **da mesma past
 
 O knob (`stl/macropad_knob.stl`) é igual para todas.
 
+> 🔧 **Antes de imprimir a tampa, imprima `stl/teste_furos_switch.stl`** (poucos
+> minutos). Ela tem 5 furos de switch: **1 marca = 14,0 mm, 2 = 14,1, 3 = 14,2,
+> 4 = 14,3, 5 = 14,4**. Encaixe um switch em cada um e escolha o furo em que ele
+> **entra com um "clique" e fica firme**. Os STLs prontos usam **14,2 mm**. Se o
+> melhor for outro valor, mude `sw_cut` no `.scad` e exporte a tampa de novo, ou
+> me peça que eu gero os arquivos.
+
 | Peça | Como imprimir |
 |---|---|
 | `macropad_bottom.stl` | Fundo na mesa, sem suporte. 3 paredes e 15–20% de preenchimento |
@@ -265,7 +272,10 @@ Camada de 0.2 mm em PLA ou PETG funciona bem.
 - `screen = "lcd130"` (padrão), `"lcd147"`, `"oled091"` ou `"oled096"`
 - `lcd130_pins = "bottom"` (padrão) ou `"left"`: lado dos pinos do GMT130
 - `board = "pico2"` para a Raspberry Pi Pico 2 (furo micro-USB e berço maior)
-- `sw_cut = 14.1` se os switches entrarem muito justos
+- `sw_cut` (padrão 14.2): tamanho do furo do switch. A medida nominal da Cherry
+  MX é 14,0, mas a impressora fecha os furos. Descubra o seu com a peça de teste
+- `sw_chamfer` (padrão 0.4): chanfro na entrada do furo, que compensa o "pé de
+  elefante" da primeira camada
 - `post_hole = 4.2` para usar insertos térmicos M3
 
 > 📏 **GMT130:** as medidas vêm da ficha técnica: placa de 27.78 x 39.22 mm, área
