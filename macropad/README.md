@@ -246,8 +246,8 @@ tela**. Imprima o `macropad_bottom.stl` e o `macropad_plate.stl` **da mesma past
 
 | Pasta | Tela | Tamanho da caixa | `LCD_ROTATION` no `config.h` |
 |---|---|---|---|
-| `stl/gmt130_pinos_esquerda/` *(recomendada)* | GMT130 1.3", pinos para a esquerda | 92 x 105 x 22 mm | 1 ou 3 (teste qual deixa a imagem de pé) |
-| `stl/gmt130_pinos_baixo/` | GMT130 1.3", pinos para baixo (para as teclas) | 92 x 117 x 22 mm | 0 (como no teste) |
+| `stl/gmt130_pinos_esquerda/` *(mais compacta)* | GMT130 1.3", pinos para a esquerda | 92 x 105 x 22 mm | 1 ou 3 (teste qual deixa a imagem de pé) |
+| `stl/gmt130_pinos_baixo/` *(padrão)* | GMT130 1.3", pinos para baixo (para as teclas) | 92 x 117 x 22 mm | 0 (como no teste) |
 | `stl/gmt147/` | GMT147SPI 1.47" | 92 x 103 x 22 mm | 1 |
 
 O knob (`stl/macropad_knob.stl`) é igual para todas.
@@ -263,7 +263,7 @@ Camada de 0.2 mm em PLA ou PETG funciona bem.
 **Mudar as opções** (abra o `.scad` no OpenSCAD e use o *Customizer*, ou edite no topo):
 
 - `screen = "lcd130"` (padrão), `"lcd147"`, `"oled091"` ou `"oled096"`
-- `lcd130_pins = "left"` ou `"bottom"`: lado dos pinos do GMT130
+- `lcd130_pins = "bottom"` (padrão) ou `"left"`: lado dos pinos do GMT130
 - `board = "pico2"` para a Raspberry Pi Pico 2 (furo micro-USB e berço maior)
 - `sw_cut = 14.1` se os switches entrarem muito justos
 - `post_hole = 4.2` para usar insertos térmicos M3
@@ -286,8 +286,8 @@ Camada de 0.2 mm em PLA ou PETG funciona bem.
 1. Encaixe os 12 switches no plate (de cima para baixo, até estalar).
 2. Prenda o encoder com a porca que vem com ele.
 3. Tire a película de proteção do LCD e encaixe-o embaixo do plate, com a tela
-   virada para a janela e os **furos de fixação nos pinos-guia**. No GMT130
-   (versão "pinos para a esquerda"), os pinos ficam do lado oposto ao encoder.
+   virada para a janela e os **furos de fixação nos pinos-guia**. No GMT130,
+   os pinos ficam virados para as teclas (versão padrão) ou para a esquerda.
    Prenda com uma gota de cola quente na ponta de cada pino-guia.
 4. Encaixe a placa no berço da caixa, com o USB virado para o furo de trás.
 5. Solde os fios conforme a tabela da seção 2.

@@ -24,7 +24,7 @@ screen = "lcd130";    // [lcd130, lcd147, oled091, oled096]  LCD 1.3" GMT130, LC
 //               No firmware, gire a imagem com LCD_ROTATION (1 ou 3).
 //   "bottom" -> pinos para baixo (na direcao das teclas): imagem como no
 //               teste (LCD_ROTATION 0), mas a caixa fica 12 mm mais funda.
-lcd130_pins = "left"; // [left, bottom]
+lcd130_pins = "bottom"; // [left, bottom]
 
 /* [LCD 1.47" - valores do GMT147SPI (ficha tecnica GoldenMorning)] */
 // O LCD fica deitado com os PINOS PARA A ESQUERDA e os 2 furos de fixacao
