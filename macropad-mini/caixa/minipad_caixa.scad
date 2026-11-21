@@ -209,11 +209,6 @@ module plate() {
         for (p = post_pos) translate([p[0], p[1], -1]) cylinder(d = post_d + 1, h = lip_h + 2);
       }
       screen_holder();
-      // anel em volta do encoder (enfeite + reforco)
-      translate([enc_pos[0], enc_pos[1], plate_t]) difference() {
-        cylinder(d = 24, h = 0.6, $fn = 96);
-        translate([0, 0, -1]) cylinder(d = 21.5, h = 3, $fn = 96);
-      }
     }
     key_positions() switch_hole(sw_cut);
     translate([enc_pos[0], enc_pos[1], -5]) cylinder(d = enc_hole, h = 10);
