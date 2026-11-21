@@ -43,7 +43,7 @@ def main():
     tmp = tempfile.mkdtemp()
     try:
         # modelo principal: telas fixas + animacao
-        pasta = rodar("180", tmp)
+        pasta = rodar("96", tmp)
         nomes = ["abertura", "midia", "tecla", "encoder", "segurando",
                  "trocando", "reuniao", "edicao", "f13", "descanso"]
         telas = [moldura(Image.open(os.path.join(pasta, n + ".ppm")).convert("RGB")) for n in nomes]
@@ -55,14 +55,14 @@ def main():
         folha.save(os.path.join(DOCS, "telas.png"))
 
         quadros = sorted(glob.glob(os.path.join(pasta, "anim_*.ppm")))
-        gif = [Image.open(q).convert("RGB").resize((160 * 2, 128 * 2), Image.NEAREST) for q in quadros]
+        gif = [Image.open(q).convert("RGB").resize((160 * 2, 80 * 2), Image.NEAREST) for q in quadros]
         gif = [g.quantize(colors=255, method=Image.Quantize.MEDIANCUT) for g in gif]
         gif[0].save(os.path.join(DOCS, "animacao.gif"), save_all=True, append_images=gif[1:],
                     duration=40, loop=0, optimize=True)
 
         # outros tamanhos de tela
         outras = []
-        for m in ("96", "144"):
+        for m in ("180", "144"):
             p = rodar(m, tmp)
             outras += [moldura(Image.open(os.path.join(p, n + ".ppm")).convert("RGB")) for n in ("midia", "encoder", "reuniao")]
         w2 = max(o.width for o in outras)

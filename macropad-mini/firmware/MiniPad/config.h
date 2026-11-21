@@ -48,14 +48,14 @@ static const uint8_t KEY_PINS[NUM_KEYS] = {0, 1, 2, 3, 4};
 #define LCD_BL_ACTIVE_LOW 0   // 1 se a luz de fundo so acender com BL em LOW
 
 // Modelo do modulo:
-//   LCD_180 -> 1.8"  128x160 (o mais comum, placa vermelha de 8 pinos)
-//   LCD_096 -> 0.96" 80x160 IPS
+//   LCD_096 -> 0.96" 80x160 IPS (padrao)
+//   LCD_180 -> 1.8"  128x160 (placa vermelha de 8 pinos)
 //   LCD_144 -> 1.44" 128x128
 #define LCD_180 180
 #define LCD_096 96
 #define LCD_144 144
 #ifndef LCD_MODEL
-#define LCD_MODEL LCD_180
+#define LCD_MODEL LCD_096
 #endif
 
 // Se a imagem sair deslocada, com borda de "lixo" ou cores estranhas,

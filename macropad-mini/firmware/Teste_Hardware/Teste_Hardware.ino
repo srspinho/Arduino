@@ -30,7 +30,7 @@ static const uint8_t KEY_PINS[5] = {0, 1, 2, 3, 4};
 #define LCD_DC   8
 #define LCD_RST  12
 #define LCD_BL   13
-#define LCD_INIT INITR_BLACKTAB   // 0.96": INITR_MINI160x80   1.44": INITR_144GREENTAB
+#define LCD_INIT INITR_MINI160x80 // 1.8": INITR_BLACKTAB   1.44": INITR_144GREENTAB
 #define LCD_ROTATION 1
 #define LCD_INVERT 0
 #define LED_PIN  16

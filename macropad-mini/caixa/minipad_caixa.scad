@@ -13,11 +13,11 @@
 //  Fixacao: 4 parafusos M3 x 8 mm (cabeca panela) direto no plastico
 //  (furo piloto de 2.6 mm). Para insertos termicos M3, use post_hole = 4.2.
 //
-//  Medidas: caixa de 111 x 79 mm e 23 mm de altura (sem as teclas).
+//  Medidas (tela 0.96"): caixa de 111 x 67 mm e 20 mm de altura (sem as teclas).
 // =====================================================================
 
 part   = "all";       // [all, bottom, plate, knob, teste_furos, teste_tela]
-screen = "lcd180";    // [lcd180, lcd096, lcd144]  1.8" 128x160, 0.96" 80x160, 1.44" 128x128
+screen = "lcd096";    // [lcd096, lcd180, lcd144]  0.96" 80x160, 1.8" 128x160, 1.44" 128x128
 
 /* [Tela - MECA O SEU MODULO com paquimetro!] */
 // Os modulos ST7735S variam um pouco entre fabricantes. Os valores abaixo sao
@@ -49,7 +49,8 @@ sw_chamfer = 0.4;     // chanfro na entrada do furo (compensa o "pe de elefante"
 
 /* [Caixa] */
 edge     = 8;         // borda entre as teclas e a lateral externa
-strip    = 44;        // faixa de tras para a tela + encoder
+// faixa de tras para a tela + encoder (cresce com o tamanho da tela)
+strip    = screen == "lcd180" ? 44 : screen == "lcd144" ? 42 : 32;
 corner_r = 4;
 wall     = 2.4;
 floor_t  = 2.4;
