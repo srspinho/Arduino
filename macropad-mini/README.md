@@ -77,6 +77,38 @@ Os nomes dos pinos estão impressos na própria placa (GP0 a GP15 nas laterais e
 Se a placa não aparecer para gravar, segure o botão **BOOT**, aperte **RESET** e
 solte os dois. A placa vira um pendrive e o IDE grava nela.
 
+## Caixa impressa em 3D (`caixa/`)
+
+![Caixa montada](docs/caixa.png)
+
+![Fundo e tampa vista por baixo](docs/caixa_pecas.png)
+
+Arquivo: `caixa/minipad_caixa.scad`. Os STL prontos para a tela de 1.8" ficam em `caixa/stl/`.
+
+| Peça | Arquivo | Como imprimir |
+|---|---|---|
+| Fundo | `minipad_bottom.stl` | fundo na mesa, sem suporte |
+| Tampa (plate) | `minipad_plate.stl` | já sai virada: topo na mesa, sem suporte |
+| Knob do encoder | `minipad_knob.stl` | em pé |
+| Teste dos furos das teclas | `minipad_teste_furos.stl` | 5 furos de 14.0 a 14.4 mm |
+| Teste da tela | `minipad_teste_tela.stl` | só o pedaço da tampa com a janela |
+
+- Tamanho: **111 × 79 mm**, com **23 mm** de altura sem as teclas.
+- Fixação com **4 parafusos M3 × 8 mm** direto no plástico. Para insertos
+  térmicos, use `post_hole = 4.2`. Os rebaixos embaixo são para pezinhos de borracha de 8 mm.
+- O furo das teclas usa `sw_cut = 14.2`, o mesmo valor que funcionou no
+  MacroPad 4x3. Se trocar de impressora ou filamento, use a peça de teste.
+- **Tela:** fica deitada, com os **pinos para a esquerda**. O vidro encosta na
+  tampa por baixo e a placa fica entre 4 cantoneiras (prenda com um pouco de cola
+  quente). Os módulos variam entre fabricantes. Por isso, **meça o seu** e
+  confira as medidas `lcd180` no começo do `.scad`; depois imprima a peça
+  `teste_tela`, que leva poucos minutos, antes da tampa inteira. Para a tela de
+  0.96" ou de 1.44", mude `screen` e gere os STL de novo no OpenSCAD (F6 e depois F7).
+- **RP2040-Zero:** encaixa no berço do fundo, com o USB-C saindo por trás.
+
+Ordem de montagem: switches e encoder na tampa, tela nas cantoneiras, fios
+soldados, placa no berço, e só então feche com os parafusos.
+
 ## Ajustes da tela (`config.h`)
 
 | Sintoma | Ajuste |
