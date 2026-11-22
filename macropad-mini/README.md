@@ -109,6 +109,33 @@ Arquivo: `caixa/minipad_caixa.scad`. Os STL prontos para a tela de 0.96" ficam e
 Ordem de montagem: switches e encoder na tampa, tela nas cantoneiras, fios
 soldados, placa no berço, e só então feche com os parafusos.
 
+### Versão compacta (`caixa/minipad_compacta.scad`)
+
+![Caixa compacta](docs/compacta.png)
+
+![Por dentro](docs/compacta_dentro.png)
+
+**101.7 × 53.5 × 14.1 mm**, contra 111 × 67 × 20 mm da normal. Foi feita para
+a tela de 0.96" e o encoder na plaquinha KY-040 (pinos CLK, DT, SW, + e GND).
+
+| Peça | Arquivo |
+|---|---|
+| Fundo | `caixa/stl/compacta_bottom.stl` |
+| Tampa (já sai virada) | `caixa/stl/compacta_plate.stl` |
+| Knob (16 mm, mais baixo) | `caixa/stl/compacta_knob.stl` |
+
+- **Fios soldados direto** nos pinos da tela, da plaquinha do encoder e da
+  RP2040-Zero. Conectores dupont (jumper) não cabem, porque a capinha deles
+  tem 14 mm.
+- **Parafusos M2 × 8 mm** auto-atarraxantes nos 4 cantos. A cabeça da M3 não
+  cabe ao lado das teclas.
+- A **RP2040-Zero fica embaixo da tela**, com o USB-C saindo por trás.
+- A **plaquinha do encoder** fica deitada, encostada na lateral direita, com os
+  pinos virados para a tela. Meça a sua e confira `ky_pcb`, `ky_enc_from_end`
+  e `ky_pins` no começo do arquivo. Se algo não couber, o OpenSCAD avisa
+  com uma mensagem de erro (`assert`).
+- O furo das teclas (14.2 mm) e a janela da tela são os mesmos da caixa normal.
+
 ## Ajustes da tela (`config.h`)
 
 | Sintoma | Ajuste |
