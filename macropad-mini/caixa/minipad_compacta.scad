@@ -31,8 +31,8 @@ scr = [30.0, 24.0, 21.70, 10.80, 1.0, 0, 1.6];
 win_margin = 0.4;
 
 /* [Encoder na plaquinha KY-040 (CLK DT SW + GND) - MECA A SUA] */
-ky_pcb = [26.0, 19.0];    // comprimento (lado dos pinos ate o outro lado) x largura
-ky_enc_from_end = 10.0;   // centro do eixo ate a ponta da placa SEM pinos
+ky_pcb = [32.0, 19.0];    // comprimento x largura (medido: 32 x 19 mm)
+ky_enc_from_end = 11.0;   // centro do eixo ate a ponta da placa SEM pinos (com 1 mm de sobra)
 ky_pins = 7.0;            // quanto os pinos (deitados) saem da placa
 enc_hole = 7.4;
 
