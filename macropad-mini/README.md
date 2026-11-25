@@ -109,6 +109,30 @@ Arquivo: `caixa/minipad_caixa.scad`. Os STL prontos para a tela de 0.96" ficam e
 Ordem de montagem: switches e encoder na tampa, tela nas cantoneiras, fios
 soldados, placa no berço, e só então feche com os parafusos.
 
+### Versão inclinada (`caixa/minipad_inclinada.scad`)
+
+![Caixa inclinada](docs/inclinada.png)
+
+![Vista de lado](docs/inclinada_lado.png)
+
+É a versão compacta com a **tela e o encoder num painel inclinado a 25°**,
+virado para quem usa. Na versão reta, os keycaps escondem a tela: era preciso
+olhar de cima, a uns 56°, para ver a borda de baixo da imagem. Com o painel
+inclinado, bastam uns 31°.
+
+**101.7 × 56.3 mm**, com **14 mm** de altura na frente e **29 mm** atrás.
+
+| Peça | Arquivo | Como imprimir |
+|---|---|---|
+| Caixa | `caixa/stl/inclinada_bottom.stl` | fundo na mesa (as paredes já têm a rampa) |
+| Tampa das teclas | `caixa/stl/inclinada_plate.stl` | já sai virada |
+| Painel da tela e do encoder | `caixa/stl/inclinada_panel.stl` | já sai virado (frente na mesa) |
+| Knob | `caixa/stl/inclinada_knob.stl` | em pé |
+
+- **8 parafusos M2 × 8 mm**: 4 na tampa das teclas e 4 no painel.
+- Fios soldados direto, como na versão compacta.
+- O ângulo pode ir de 20° a 35° (`tilt`). Se algo deixar de caber, o OpenSCAD avisa.
+
 ### Versão compacta (`caixa/minipad_compacta.scad`)
 
 ![Caixa compacta](docs/compacta.png)
@@ -135,6 +159,8 @@ a tela de 0.96" e o encoder na plaquinha KY-040 (pinos CLK, DT, SW, + e GND).
   e `ky_pins` no começo do arquivo. Se algo não couber, o OpenSCAD avisa
   com uma mensagem de erro (`assert`).
 - O furo das teclas (14.2 mm) e a janela da tela são os mesmos da caixa normal.
+- A posição da janela da tela de 0.96" foi corrigida com base no módulo
+  montado: a área ativa fica 1.2 mm deslocada para o lado dos pinos.
 
 ## Ajustes da tela (`config.h`)
 

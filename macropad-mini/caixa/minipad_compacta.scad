@@ -27,8 +27,8 @@ part = "all";         // [all, bottom, plate, knob]
 /* [Tela 0.96" (medidas confirmadas: placa 30 x 24 mm)] */
 // [largura da placa, altura da placa, largura da area ativa, altura da area
 //  ativa, deslocamento da area ativa (x: + = longe dos pinos; y), vidro]
-scr = [30.0, 24.0, 21.70, 10.80, 1.0, 0, 1.6];
-win_margin = 0.4;
+scr = [30.0, 24.0, 21.70, 10.80, -1.2, 0, 1.6];   // area ativa 1.2 mm para o lado dos pinos (medido)
+win_margin = 0.5;
 
 /* [Encoder na plaquinha KY-040 (CLK DT SW + GND) - MECA A SUA] */
 ky_pcb = [32.0, 19.0];    // comprimento x largura (medido: 32 x 19 mm)

@@ -32,9 +32,9 @@ screen = "lcd096";    // [lcd096, lcd180, lcd144]  0.96" 80x160, 1.8" 128x160, 1
 //  direita, longe dos pinos; y: + = para tras),
 //  altura do vidro acima da placa (de cima da placa ate o topo do vidro)]
 lcd180 = [56.0, 34.0, 35.04, 28.03, 2.6, 0, 2.6];   // 1.8" placa vermelha de 8 pinos
-lcd096 = [30.0, 24.0, 21.70, 10.80, 1.0, 0, 1.6];   // 0.96" IPS 80x160
+lcd096 = [30.0, 24.0, 21.70, 10.80, -1.2, 0, 1.6];  // 0.96" IPS 80x160 (deslocamento medido nas fotos do modulo montado)
 lcd144 = [38.0, 32.0, 25.50, 26.50, 2.0, 0, 2.4];   // 1.44" 128x128
-win_margin = 0.4;     // folga da janela em volta da area ativa (cada lado)
+win_margin = 0.5;     // folga da janela em volta da area ativa (cada lado)
 // Furos de fixacao do modulo: pinos-guia na tampa (desligado: as medidas
 // variam muito; com eles, a tela fica presa sem cola)
 lcd_pegs = false;
