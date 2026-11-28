@@ -120,7 +120,19 @@ virado para quem usa. Na versão reta, os keycaps escondem a tela: era preciso
 olhar de cima, a uns 56°, para ver a borda de baixo da imagem. Com o painel
 inclinado, bastam uns 31°.
 
-**101.7 × 56.3 mm**, com **14 mm** de altura na frente e **29 mm** atrás.
+**101.7 × 59.3 mm**, com **14 mm** de altura na frente e **30.4 mm** atrás.
+
+- **Encaixe por pressão:** as abas da tampa e do painel têm saliências que
+  entram em canaletas nas paredes. As peças ficam presas sozinhas, e os
+  parafusos só dão o aperto final.
+- **Nervuras na tampa das teclas:** uma entre cada par de teclas, indo até o
+  fundo (0.2 mm de folga), para a tampa não dobrar quando você aperta as
+  teclas. Cada nervura tem um vão de 7 × 4 mm na ponta para os fios passarem.
+- **Tela 3 mm mais para cima** no painel; o encoder continua no mesmo lugar.
+
+![Tampa das teclas por baixo, com as nervuras](docs/inclinada_tampa.png)
+
+![Corte do encaixe: a saliência da aba na canaleta da parede](docs/inclinada_encaixe.png)
 
 | Peça | Arquivo | Como imprimir |
 |---|---|---|
@@ -131,6 +143,8 @@ inclinado, bastam uns 31°.
 
 - **8 parafusos M2 × 8 mm**: 4 na tampa das teclas e 4 no painel.
 - Fios soldados direto, como na versão compacta.
+- Encaixe mais duro ou mais mole: ajuste `snap_out` (0.6 mm aperta 0.3 mm
+  na parede). Para tirar as nervuras: `ribs = false`.
 - O ângulo pode ir de 20° a 35° (`tilt`). Se algo deixar de caber, o OpenSCAD avisa.
 
 ### Versão compacta (`caixa/minipad_compacta.scad`)

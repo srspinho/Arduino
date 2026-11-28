@@ -39,13 +39,13 @@ sw_chamfer = 0.4;
 
 /* [Caixa] */
 edge     = 3.2;
-strip    = 32;            // profundidade (em planta) da parte inclinada
+strip    = 35;            // profundidade (em planta) da parte inclinada
 corner_r = 3;
 wall     = 2.0;
 floor_t  = 1.6;
 inner_h  = 11;            // fundo -> baixo da tampa das teclas
 plate_t  = 1.5;
-lip_h    = 2.0;
+lip_h    = 3.0;            // abas mais altas: encaixe por pressao
 lip_t    = 1.2;
 fit      = 0.3;
 post_d   = 5;
@@ -57,6 +57,22 @@ board_dims = [18, 23.5];
 usb_w = 13; usb_h = 7.5;
 board_ledge = 1.0;
 
+/* [Encaixe por pressao] */
+// Saliencias nas abas da tampa e do painel entram em canaletas nas paredes:
+// as pecas ficam presas sozinhas e os parafusos so dao o aperto final.
+snap_r     = 0.8;         // raio da saliencia
+snap_out   = 0.6;         // quanto ela sai da aba (folga da parede = fit: aperta 0.3 mm)
+snap_len   = 8;
+
+/* [Nervuras da tampa das teclas] */
+ribs      = true;         // barras entre as teclas, da tampa ate o fundo
+rib_t     = 2.0;
+rib_gap   = 0.2;          // folga ate o fundo
+wire_pass = [7, 4];       // vao para os fios na ponta de cada nervura (largura, altura)
+
+/* [Posicoes] */
+scr_up = 3;               // tela 3 mm mais para cima (ao longo do painel)
+
 $fn = 48;
 
 // ------------------------- medidas derivadas -------------------------
@@ -65,6 +81,7 @@ y_k = edge + pitch + 2;                 // linha onde comeca a rampa
 D = y_k + strip;
 H = floor_t + inner_h;                  // altura das paredes na parte reta
 L = strip / cos(tilt);                  // comprimento do painel (na rampa)
+L0 = 32 / cos(tilt);                    // painel da versao anterior (referencia das posicoes)
 H_back = H + strip * tan(tilt);         // altura da parede de tras
 cxy = corner_r;
 
@@ -75,11 +92,11 @@ function P(x, s, t) = [x, y_k + s * cos(tilt) - t * sin(tilt), H + s * sin(tilt)
 module on_panel() translate([0, y_k, H]) rotate([tilt, 0, 0]) children();
 
 // posicoes (no proprio painel: x e s)
-scr_c = [edge + 1.5 * pitch, L / 2 - 1];   // 1 mm abaixo do meio: atras nao cabe (parede)
+scr_c = [edge + 1.5 * pitch, L0 / 2 - 1 + scr_up];
 win_c = [scr_c[0] + scr[4], scr_c[1] + scr[5]];
 win = [scr[2] + 2 * win_margin, scr[3] + 2 * win_margin];
 glass_t = scr[6];
-enc_c = [W - wall - fit - (ky_enc_from_end + 0.5), L / 2];
+enc_c = [W - wall - fit - (ky_enc_from_end + 0.5), L0 / 2];   // encoder no mesmo lugar
 ky_x0 = enc_c[0] - (ky_pcb[0] - ky_enc_from_end);
 
 plate_posts = [[cxy, cxy], [W - cxy, cxy], [cxy, y_k - 3.5], [W - cxy, y_k - 3.5]];
@@ -132,6 +149,45 @@ module side_profile() {
   rotate([90, 0, 90]) linear_extrude(W + 2) polygon([[0, 0], [D, 0], [D, H_back], [y_k, H], [0, H]]);
 }
 
+// ----------------------- encaixe por pressao --------------------------
+// Uma saliencia (groove = false) ou a canaleta correspondente (groove = true).
+// pos: ponto na face externa da aba; dir: para onde a face aponta; len ao longo da face.
+module snap(pos, dir, groove) {
+  r = groove ? snap_r + 0.2 : snap_r;
+  l = groove ? snap_len + 1 : snap_len;
+  c = snap_out - snap_r;                    // centro do cilindro em relacao a face
+  translate(pos + c * dir)
+    rotate(dir[0] != 0 ? [90, 0, 0] : [0, 90, 0])
+      cylinder(r = r, h = l, center = true, $fn = 24);
+}
+snap_z = -lip_h / 2 - 0.3;
+module plate_snaps(groove) {
+  zz = groove ? H + snap_z : snap_z;
+  ys = (cxy + y_k - 3.5) / 2;               // meio das laterais, entre os postes
+  for (x = [W * 0.3, W * 0.7]) snap([x, wall + fit, zz], [0, -1, 0], groove);
+  snap([wall + fit, ys, zz], [-1, 0, 0], groove);
+  snap([W - wall - fit, ys, zz], [1, 0, 0], groove);
+}
+module panel_snaps(groove) {
+  for (sp = [L * 0.36, L * 0.64]) {
+    snap([wall + fit, sp, snap_z], [-1, 0, 0], groove);
+    snap([W - wall - fit, sp, snap_z], [1, 0, 0], groove);
+  }
+}
+
+// nervuras entre as teclas (presas na tampa, encostam no fundo)
+module plate_ribs() {
+  h = inner_h - rib_gap;
+  y0 = wall + fit + lip_t + 0.3;
+  y1 = y_k - 2.5;
+  for (i = [1 : keys - 1])
+    translate([edge + i * pitch - rib_t / 2, y0, -h]) difference() {
+      cube([rib_t, y1 - y0, h]);
+      // vao para os fios, encostado no fundo
+      translate([-1, (y1 - y0 - wire_pass[0]) / 2, -1]) cube([rib_t + 2, wire_pass[0], wire_pass[1] + 1]);
+    }
+}
+
 // ---------------------------- caixa inferior -------------------------
 module bottom() {
   bw = board_dims[0]; bl = board_dims[1];
@@ -144,12 +200,12 @@ module bottom() {
           translate([wall, wall, floor_t]) rounded_rect(W - 2 * wall, D - 2 * wall, H_back + 5, max(0.5, corner_r - wall));
         }
         // postes da tampa das teclas
-        for (p = plate_posts) translate([p[0], p[1], 0]) cylinder(d = post_d, h = H - lip_h - 0.2);
+        for (p = plate_posts) translate([p[0], p[1], 0]) cylinder(d = post_d, h = H - 0.1);
         // postes do painel: seguem a perpendicular do painel ate o fundo
         for (p = panel_posts) {
-          top = P(p[0], p[1], -lip_h - 0.2);
+          top = P(p[0], p[1], -0.1);
           down = (top[2] - floor_t) / cos(tilt);
-          bot = P(p[0], p[1], -lip_h - 0.2 - down);
+          bot = P(p[0], p[1], -0.1 - down);
           hull() {
             translate(top) rotate([tilt, 0, 0]) cylinder(d = post_d, h = 0.01);
             translate([bot[0], bot[1], 0]) cylinder(d = post_d, h = floor_t + 0.01);
@@ -164,6 +220,9 @@ module bottom() {
       }
       for (p = plate_posts) translate([p[0], p[1], floor_t]) cylinder(d = post_hole, h = H);
       for (p = panel_posts) on_panel() translate([p[0], p[1], -10]) cylinder(d = post_hole, h = 10.5);
+      // canaletas do encaixe por pressao
+      plate_snaps(true);
+      on_panel() panel_snaps(true);
       translate([board_x, D - wall / 2, usb_z]) rotate([90, 0, 0])
         linear_extrude(wall + 2, center = true) offset(1.5) square([usb_w - 3, usb_h - 3], center = true);
     }
@@ -183,6 +242,8 @@ module plate() {
         translate([wall + fit + lip_t, wall + fit + lip_t, -1]) cube([W - 2 * (wall + fit + lip_t), d, lip_h + 2]);
         for (p = plate_posts) translate([p[0], p[1], -1]) cylinder(d = post_d + 1.2, h = lip_h + 2);
       }
+      plate_snaps(false);
+      if (ribs) plate_ribs();
     }
     key_positions() switch_hole(sw_cut);
     for (p = plate_posts) {
@@ -202,6 +263,7 @@ module panel() {
       // abas nas laterais (encaixam por dentro das paredes)
       for (x = [wall + fit, W - wall - fit - lip_t])
         translate([x, 4, -lip_h]) cube([lip_t, L - 8 - wall, lip_h]);
+      panel_snaps(false);
       // cantoneiras da tela
       translate([scr_c[0], scr_c[1], -hh])
         for (sx = [-1, 1], sy = [-1, 1])
